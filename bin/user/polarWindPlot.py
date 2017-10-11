@@ -62,6 +62,12 @@ DISTANCE_LOOKUP = {'km_per_hour': 'km',
                    'meter_per_second': 'km',
                    'knot': 'Nm'}
 
+SPEED_LOOKUP = {'km_per_hour': 'km/h',
+                'mile_per_hour': 'mph',
+                'meter_per_second': 'm/s',
+                'knot': 'kn'}
+
+
 def logmsg(lvl, msg):
     syslog.syslog(lvl, 'polarwindplot: %s' % msg)
 
@@ -774,13 +780,14 @@ class PolarWindPlot(object):
             i += 1
 
         # draw outside ring label
-        width, height = self.draw.textsize(labels[i-1], font=self.plot_font)
-        x = self.origin_x + (2 * i + d2) * offset_x - width / 2
-        y = self.origin_y + (2 * i + d2) * offset_y - height / 2
-        self.draw.text((x, y),
-                       labels[i - 1],
-                       fill=self.plot_font_color,
-                       font=self.plot_font)
+        if labels[i - 1] is not None:
+            width, height = self.draw.textsize(labels[i-1], font=self.plot_font)
+            x = self.origin_x + (2 * i + d2) * offset_x - width / 2
+            y = self.origin_y + (2 * i + d2) * offset_y - height / 2
+            self.draw.text((x, y),
+                           labels[i - 1],
+                           fill=self.plot_font_color,
+                           font=self.plot_font)
 
     def render_title(self):
         """Render polar plot title."""
@@ -871,35 +878,62 @@ class PolarWindPlot(object):
 
         return None
 
-    def joinCurve(self, lasta, lastr, lastx, lasty, thisa, linecolor):
-        """Join two points with a curve"""
+    def joinCurve(self, start_x, start_y, start_r, start_a, end_x, end_y, end_r, end_a, color):
+        """Join two points with a curve.
 
-        # We create a smooth curve between two adjacent points by joing them
-        # up with straight line segments covering 1 degree of arc
-        if (thisa - lasta) % 360 <= 180 :
-            starta = lasta
-            enda = thisa
-            #anglespan = (thisa - lasta)%360
+        Draw a smooth curve between two points by joing them with straight line
+        segments covering 1 degree of arc.
+
+        Inputs:
+            start_x: start point plot x coordinate
+            start_y: start point plot y coordinate
+            start_r: start point vector radius
+            start_a: start point vector direction
+            end_x:   end point plot x coordinate
+            end_y:   end point plot y coordinate
+            end_r:   end point vector radius
+            end_a:   end point vector direction
+            color:   color to be used
+        """
+
+        # calculate the angle in degrees between the start and end vectors and
+        # the 'direction of plotting'
+        if (end_a - start_a) % 360 <= 180:
+            start = start_a
+            end = end_a
             dir = 1
         else:
-            starta = thisa
-            enda = lasta
-            #anglespan = (lasta - thisa)%360
+            start = end_a
+            end = start_a
             dir = -1
-        anglespan = (enda - starta)%360
-        a = 0
-        while a < anglespan:
-            pointr = lastr + (self.radius - lastr) * a / anglespan
-            pointx = int(self.origin_x + pointr*math.sin(math.radians(lasta + (a * dir))))
-            pointy = int(self.origin_y - pointr*math.cos(math.radians(lasta + (a * dir))))
-            vector = (int(lastx), int(lasty), int(pointx), int(pointy))
-            self.draw.line(vector, fill=linecolor, width=1) # Straight line
-            lastx = pointx
-            lasty = pointy
+        angle_span = (end - start) % 360
+        # initialise our start plot points
+        last_x = start_x
+        last_y = start_y
+        a = 1
+        # while statement to allow us to draw in 1 degree increments
+        while a < angle_span:
+            # calculate the radius of the vector of next point we will draw to
+            radius = start_r + (end_r - start_r) * a / angle_span
+            # get the x and y plot coords of the next point
+            x = int(self.origin_x + radius * math.sin(math.radians(start + (a * dir))))
+            y = int(self.origin_y - radius * math.cos(math.radians(start + (a * dir))))
+            # define the start and end points of the line between the current
+            # point to the last
+            xy = (last_x, last_y, x, y)
+            # draw a straight line
+            self.draw.line(xy, fill=color, width=1)
+            # save our current point as the last point
+            last_x = x
+            last_y = y
+            # increment the angle
             a += 1
-        #  and now Draw the last line segment to end point
-        vector = (int(lastx), int(lasty), int(self.origin_x + self.x), int(self.origin_y - self.y))
-        self.draw.line(vector, fill=linecolor, width=1)
+        # once we have finished we need to draw the last incremental point to
+        # our orignal end point
+        # define the line to be drawn
+        xy = (last_x, last_y, end_x, end_y)
+        # draw the line
+        self.draw.line(xy, fill=color, width=1)
 
     def get_legend_title(self, source=None):
         """Produce a title for the legend."""
@@ -1664,29 +1698,52 @@ class PolarWindSpiralPlot(PolarWindPlot):
 class PolarWindScatterPlot(PolarWindPlot):
     """Specialise class to generate a windrose plot."""
 
-    def __init__(self, plot_dict):
+    def __init__(self, skin_dict, plot_dict):
         """Initialise a PolarWindScatterPlot object."""
 
         # initialise my superclass
-        super(PolarWindScatterPlot, self).__init__(plot_dict)
+        super(PolarWindScatterPlot, self).__init__(skin_dict, plot_dict)
 
         # we don't display a legend on a scatter plot so force legend to False
         self.legend = False
-
         # get marker_style, default to 'circle'
         self.marker_style = self.plot_dict.get('marker_style', 'circle')
 
-        self.line_style = self.plot_dict.get('line_style', 'none')
+        # Get line style, can be 'straight', 'spoke', 'radial' or None. Default
+        # to 'straight'
+        _style = self.plot_dict.get('line_style', 'straight')
+        # we have a line style but is it one we know about
+        if _style is not None and _style.lower() not in ['straight', 'spoke', 'radial']:
+            # it's a line style I don't understand, set line_style to
+            # 'straight' so that something is displayed then log it
+            self.line_style = 'straight'
+            logdbg("Unknown scatter plot line style '%s', using 'straight' instead" % (_style, ))
+        else:
+            # we have a valid line style so save it
+            self.line_style = _style
 
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
-        # 'speed'.
-        self.line_color = plot_dict.get('line_color', 'speed')
-        if self.line_color not in ['speed', 'age']:
-            self.line_color = parse_color(self.line_color, 'speed')
+        # 'age'.
+        _line_color = plot_dict.get('line_color', 'age')
+        # we have a line color but is it valid or a style we know about
+        if _line_color in ['age', 'speed']:
+            # it's a color style I understand
+            self.line_color = _line_color
+        else:
+            _parsed = parse_color(_line_color, None)
+            if _parsed is not None:
+                # we have a valid supported color
+                self.line_color = _parsed
+            else:
+                # it's an invlaid color so use 'age' instead and log it
+                self.line_color = 'age'
+                logdbg("Unknown scatter plot line color '%s', using 'age' instead" % (_line_color, ))
 
         # get colors for oldest and newest points
-        self.oldest_color = self.plot_dict.get('oldest_color', '0xF7FAFF')
-        self.newest_color = self.plot_dict.get('newest_color', '0x00368e')
+        _oldest_color = self.plot_dict.get('oldest_color')
+        self.oldest_color = parse_color2(_oldest_color, '#F7FAFF')
+        _newest_color = self.plot_dict.get('newest_color')
+        self.newest_color = parse_color2(_newest_color, '#00368E')
 
         # get axis label format
         self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
@@ -1694,7 +1751,35 @@ class PolarWindScatterPlot(PolarWindPlot):
     def render(self):
         """Main entry point to generate a scatter polar wind plot."""
 
-        pass
+        # get an Image object for our plot
+        image = self.get_image()
+        # get a Draw object on which to render the plot
+        self.draw = ImageDraw.Draw(image)
+        # get handles for the fonts we will use
+        self.get_font_handles()
+#### This needs to be fixed, should not render until setup complete
+        if self.title:
+            width, height = self.draw.textsize(self.title, font=self.label_font)
+            self.title_height = height
+        else:
+            self.title_height = 0
+
+        # set up the background polar grid
+        self.set_polar_grid()
+        # setup the spiral plot
+        self.set_plot()
+
+        # render the title
+        self.render_title()
+
+        # render the polar grid
+        self.render_polar_grid()
+        # render the timestamp label
+        self.render_timestamp()
+        # finally render the plot
+        self.render_plot()
+        # return the completed plot image
+        return image
 
     def set_plot(self):
         """Setup the scatter plot render.
@@ -1703,12 +1788,102 @@ class PolarWindScatterPlot(PolarWindPlot):
         polar trail plot.
         """
 
-        pass
+        # set the location of the ring labels, in this case SE
+        self.label_dir = 6
+        # determine the 'unit' label to use on ring labels
+        self.ring_units = SPEED_LOOKUP[self.speed_vec[1]]
 
     def render_plot(self):
         """Render the scatter plot data."""
 
-        pass
+        # radius of plot area in pixels
+        plot_radius =  self.max_plot_dia / 2
+
+        # unfortunately PIL does not allow us to work with layers so we need to
+        # process our data twice; once to plot the 'trail' and a second time to
+        # plot any markers
+
+        # plot the scatter line if required
+        if self.line_style is not None:
+            # initialise values for the last plot point, use None as there is
+            # no last point the first time around
+            lastx = lasty = lasta = lastr = None
+            # iterate over the samples
+            for i in range(0, self.samples):
+                # we only plot if we have values for speed and dir
+                if self.speed_vec[0][i] is not None and self.dir_vec[0][i] is not None:
+                    # calculate the 'radius' in pixels of the vector
+                    # representing the sample to be plotted
+                    radius = plot_radius * self.speed_vec[0][i] / self.max_speed_range
+                    # calculate the x and y coords of the sample to be plotted
+                    x = int(self.origin_x + radius * math.sin(math.radians(self.dir_vec[0][i])))
+                    y = int(self.origin_y - radius * math.cos(math.radians(self.dir_vec[0][i])))
+                    # if this is the first sample we can skip it as we have
+                    # nothing to plot from
+                    if lastr is not None:
+                        # determine the line color to be used
+                        if self.line_color == "age":
+                            # color is dependent on the age of the sample so
+                            # calculate a transitioan color
+                            line_color = color_trans(self.oldest_color,
+                                                     self.newest_color,
+                                                     i / (self.samples - 1.0))
+                        else:
+                            # fixed line color
+                            line_color = self.line_color
+                        # draw the line, line style can be 'straight', 'spoke',
+                        # 'radial' or no line
+                        if self.line_style == "straight":
+                            xy = (lastx, lasty, x, y)
+                            self.draw.line(xy, fill=line_color, width=1)
+                        elif self.line_style == "spoke":
+                            spoke = (self.origin_x, self.origin_y, x, y)
+                            self.draw.line(spoke, fill=line_color, width=1)
+                        elif self.line_style == "radial":
+                            self.joinCurve(lastx, lasty, lastr, lasta,
+                                           x, y, radius, self.dir_vec[0][i],
+                                           line_color)
+                    # this sample is complete, save the plot values as the
+                    # 'last' sample
+                    lastx = x
+                    lasty = y
+                    lasta = self.dir_vec[0][i]
+                    lastr = radius
+
+        # plot the markers if required
+        if self.marker_style is not None:
+            # iterate over the samples
+            for i in range(0, self.samples):
+                # we only plot if we have values for speed and dir
+                if self.speed_vec[0][i] is not None and self.dir_vec[0][i] is not None:
+                    # calculate the 'radius' in pixels of the vector
+                    # representing the sample to be plotted
+                    radius = plot_radius * self.speed_vec[0][i] / self.max_speed_range
+                    # calculate the x and y coords of the sample to be plotted
+                    x = self.origin_x + radius * math.sin(math.radians(self.dir_vec[0][i]))
+                    y = self.origin_y - radius * math.cos(math.radians(self.dir_vec[0][i]))
+                    # determine the marker color to be used
+                    if self.line_color == "age" :
+                        marker_color = color_trans(self.oldest_color,
+                                                   self.newest_color,
+                                                   i / (self.samples - 1.0))
+                    else :
+                        marker_color = self.line_color
+                    # now draw the markers
+                    if self.marker_style == "dot" :
+                        point = (int(x), int(y))
+                        self.draw.point(point, fill=marker_color)
+                    elif self.marker_style == "circle" :
+                        bbox = (int(x - 1), int(y - 1),
+                                int(x + 1), int(y + 1))
+                        self.draw.ellipse(bbox,
+                                          outline=marker_color,
+                                          fill=marker_color)
+                    elif self.marker_style == "cross" :
+                        horline = (int(x - 1), int(y), int(x + 1), int(y))
+                        verline = (int(x), int(y - 1), int(x),int(y + 1))
+                        self.draw.line(horline, fill=marker_color, width=1)
+                        self.draw.line(verline, fill=marker_color, width=1)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
@@ -1726,7 +1901,8 @@ class PolarWindScatterPlot(PolarWindPlot):
         Returns:
             label text for the given ring number
         """
-        label_inc = self.max_ring_value / 5
+
+        label_inc = self.max_speed_range / 5
         return ''.join([str(int(round(label_inc * ring, 0))), self.ring_units])
 
 
@@ -1748,7 +1924,7 @@ def parse_color(color, default):
         default: the default value if color cannot be aprsed to a valid colour
 
     Returns:
-        a valid color word, tuple or number or the value None
+        a valid rgb tuple or the value None
     """
 
     # do we have a valid color or none (in any case)
@@ -1762,3 +1938,57 @@ def parse_color(color, default):
         result = None
     return result
 
+def parse_color2(color, default=None):
+    """Parse a string representing a color.
+
+    Parse a parameter representing a colour where the value may be a colour
+    word eg 'red', a tuple representing RGB values eg (255, 0, 0) or a number
+    eg 0xFF0000. If the color string cannot be parsed to a valid color a
+    default value is returned.
+
+    Inputs:
+        color:   the string to be parsed
+        default: the default value if color cannot be aprsed to a valid colour
+
+    Returns:
+        a valid rgb tuple or the default value
+    """
+
+    # do we have a valid color or none (in any case)
+    try:
+        result = ImageColor.getrgb(color)
+    except ValueError:
+    # color is not a recognised color string, use the default
+        result = parse_color2(default)
+    except AttributeError:
+    # color is something (maybe None) that getrgb() cannot parse, use the
+    # default
+        result = parse_color2(default)
+    return result
+
+def color_trans(start_color, end_color, proportion):
+    """Get a color on a linear transition between two given colors.
+
+    Uses the algorithm from
+    https://stackoverflow.com/questions/21835739/smooth-color-transition-algorithm
+
+    Inputs:
+        start_color: 3-way tuple with rgb components of start color.
+        end_color:   3-way tuple with rgb components of end color.
+        proportion:  Float in range 0 to 1 inclusive that determines the
+                     resulting color on the linear transition from
+                     start_color (0) to end_color (1).
+     Returns:
+        A string in the format #RRGGBB
+    """
+
+    # get rgb components of the start and end colors
+    start_r, start_g, start_b = start_color
+    end_r, end_g, end_b = end_color
+
+    # calculate the transitional color rgb components
+    r = int((1 - proportion) * start_r + proportion * end_r + 0.5)
+    g = int((1 - proportion) * start_g + proportion * end_g + 0.5)
+    b = int((1 - proportion) * start_b + proportion * end_b + 0.5)
+    # return the resulting transitional color in #RRGGBB format
+    return '#%02x%02x%02x' % (r, g, b)
