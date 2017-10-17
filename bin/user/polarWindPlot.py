@@ -646,7 +646,7 @@ class PolarWindPlot(object):
                        fill=self.legend_font_color,
                        font=self.legend_font)
 
-    def render_polar_grid(self):
+    def render_polar_grid(self, plot_type):
         """Render polar plot grid.
 
         Render the axes, speed circles and labels.
@@ -671,14 +671,27 @@ class PolarWindPlot(object):
 #            d2 = 1
         # Calc distance between windrose range rings. Note that 'calm' bulleye
         # is at centre of plot with diameter equal to bbMinRad.
-        # TODO may need 11.0 here also, I needed to make 10.0 for
-        # spiral/scatter to avoid integer rounding problems
-        bbMinRad = self.max_plot_dia/11
-        delta = 0.5
-        d2 = 1
+        #
+        # TODO Suggested improvement .... too many magic numbers in here
+        # in essence they are
+        # no_of_rings, which is 5 in all our cases
+        # centre_ring (0.5 for rose, 0 otherwise)
+        #
+        # bbMinRad = self.max_plot_dia/2.0*(no_of_rings + centre_ring)
+        # delta = centre_ring
+        # d2 = 2* delta (do we even need to define it or is it somethign else that happens to be 2*delta)
+        if plot_type == "scatter" or plot_type == "spiral" or plot_type == "trail" :
+            no_of_rings = 5
+            centre_ring = 0
+        else :
+            no_of_rings = 5
+            centre_ring = 0.5
+        bbMinRad = self.max_plot_dia/(2.0*(no_of_rings + centre_ring))
+        delta = centre_ring
+        #d2 = 2 * centre_ring
         # locate/size then render each speed ring starting from the outside
-        i = 5
-        while i > 0:
+        i = no_of_rings # TODO Magic number 5 is related to the 10 and 11 above, changed here, pending testing
+        while i > 0: # TODO make for range loop ?
             # create a bound box for the ring
             bbox = (self.origin_x - bbMinRad * (i + delta),
                     self.origin_y - bbMinRad * (i + delta),
@@ -744,50 +757,54 @@ class PolarWindPlot(object):
         # render labels on rings
         labels = list((None, None, None, None, None))   # list to hold ring labels
         i = 1
-        while i < 6:
+        while i < 6: # TODO make for range
             # get the label to be used for this ring
             labels[i - 1] = self.get_ring_label(i)
             # next ring
             i += 1
         # calculate location of ring labels
+        # offset_x/y is the x/y offset for a label in half ring steps
         angle = 7 * math.pi / 4 + int(self.label_dir / 4.0) * math.pi / 2
-#        if self.plot_type == "scatter" or self.plot_type == "spiral" or self.plot_type == "trail":
-#            offset_x = int(round(self.max_plot_dia / 20 * math.cos(angle), 0))
-#            offset_y = int(round(self.max_plot_dia / 20 * math.sin(angle), 0))
-#        else:
-        offset_x = int(round(self.max_plot_dia / 22 * math.cos(angle), 0))
-        offset_y = int(round(self.max_plot_dia / 22 * math.sin(angle), 0))
+        #if plot_type == "scatter" or plot_type == "spiral" or plot_type == "trail":
+        offset_x = int(round(self.max_plot_dia / (4 * (no_of_rings + centre_ring)) * math.cos(angle), 0))
+        offset_y = int(round(self.max_plot_dia / (4 * (no_of_rings + centre_ring)) * math.sin(angle), 0))
+        #else:
+        #    offset_x = int(round(self.max_plot_dia / 22 * math.cos(angle), 0))
+        #    offset_y = int(round(self.max_plot_dia / 22 * math.sin(angle), 0))
         # Draw ring labels. Note leave inner ring blank due to lack of space.
         # For clarity each label (except for outside ring) is drawn on a
         # rectangle with background colour set to that of the circular plot.
 
-#### TODO Spiral has this as 2
+#### TODO Spiral has this as 2 : NT COMMENT I THINK THIS IS AN OLD DEAD COMMENT THAT CAN BE REMOVED
+        # Draw ring labels, 1 is inner and 5 is outer
         i = 1
-        while i < 5:
+        while i < 6: # TODO make for range
             if labels[i-1] is not None:
                 width, height = self.draw.textsize(labels[i-1],
                                                    font=self.plot_font)
-                x0 = self.origin_x + (2 * i + d2) * offset_x - width / 2
-                y0 = self.origin_y + (2 * i + d2) * offset_y - height / 2
-                x1 = self.origin_x + (2 * i + d2) * offset_x + width / 2
-                y1 = self.origin_y + (2 * i + d2) * offset_y + height / 2
-                self.draw.rectangle([(x0, y0), (x1, y1)],
-                                    fill=self.image_back_circle_color)
+                x0 = self.origin_x + (2 * (i + centre_ring)) * offset_x - width / 2
+                y0 = self.origin_y + (2 * (i + centre_ring)) * offset_y - height / 2
+                if i < 5:
+                    # The inner most labels have a white box painted first
+                    x1 = self.origin_x + (2 * (i + centre_ring)) * offset_x + width / 2
+                    y1 = self.origin_y + (2 * (i + centre_ring)) * offset_y + height / 2
+                    self.draw.rectangle([(x0, y0), (x1, y1)],
+                                        fill=self.image_back_circle_color)
                 self.draw.text((x0, y0),
                                labels[i - 1],
                                fill=self.plot_font_color,
                                font=self.plot_font)
             i += 1
 
-        # draw outside ring label
-        if labels[i - 1] is not None:
-            width, height = self.draw.textsize(labels[i-1], font=self.plot_font)
-            x = self.origin_x + (2 * i + d2) * offset_x - width / 2
-            y = self.origin_y + (2 * i + d2) * offset_y - height / 2
-            self.draw.text((x, y),
-                           labels[i - 1],
-                           fill=self.plot_font_color,
-                           font=self.plot_font)
+        # # draw outside ring label
+        # if labels[i - 1] is not None:
+            # width, height = self.draw.textsize(labels[i-1], font=self.plot_font)
+            # x0 = self.origin_x + (2 * i + d2) * offset_x - width / 2
+            # y0 = self.origin_y + (2 * i + d2) * offset_y - height / 2
+            # self.draw.text((x0, y0),
+                           # labels[i - 1],
+                           # fill=self.plot_font_color,
+                           # font=self.plot_font)
 
     def render_title(self):
         """Render polar plot title."""
@@ -1003,7 +1020,7 @@ class PolarWindRosePlot(PolarWindPlot):
         self.render_title()
         self.render_legend()
 
-        self.render_polar_grid()
+        self.render_polar_grid("rose")
         # finally render the plot
         self.render_plot()
         self.render_timestamp()
@@ -1251,7 +1268,7 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.render_title()
         self.render_legend()
 
-        self.render_polar_grid()
+        self.render_polar_grid("trail")
         # finally render the plot
         self.render_plot()
         self.render_timestamp()
@@ -1498,7 +1515,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.render_legend()
 
         # render the polar grid
-        self.render_polar_grid()
+        self.render_polar_grid("spiral")
         # render the timestamp label
         self.render_timestamp()
         # render the spial direction label
@@ -1785,7 +1802,7 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.render_title()
 
         # render the polar grid
-        self.render_polar_grid()
+        self.render_polar_grid("scatter")
         # render the timestamp label
         self.render_timestamp()
         # finally render the plot
