@@ -1211,8 +1211,11 @@ class PolarWindTrailPlot(PolarWindPlot):
                                         'red')
 
 #### not sure about the 'rest of the points comment, does this mean marker_color? (which is not default None)
-        # get end_color, default to None as per the rest of the points
-        self.end_color = parse_color(self.plot_dict.get('end_color', None),
+#### This should make more sense now
+        # get end_point_color, default to "none" which is points coloured as per the rest of the points as defined by marker_color
+        # can be 'none' or a valid color.
+        # TODO inconsistent use of None or "none" in code/skin for these colours.modes that can take different values inlcuding none
+        self.end_point_color = parse_color(self.plot_dict.get('end_point_color', None),
                                      None)
 
         # set some properties to startup defaults
@@ -1318,7 +1321,7 @@ class PolarWindTrailPlot(PolarWindPlot):
             vec_y = 0
             # iterate over the samples, ignore the first since we don't know what
             # period (delta) it applies to
-            for i in range(1, self.samples):
+            for i in range(1, self.samples): # TODO NT Check this, its been changed
                 # ignore any speeds that are 0 or None and any directions that
                 # are None
                 if self.speed_vec[0][i] is None or self.dir_vec[0][i] is None or self.speed_vec[0][i] == 0.0:
@@ -1347,8 +1350,8 @@ class PolarWindTrailPlot(PolarWindPlot):
                     markercolor = self.marker_color
                 # if this is the last point make it different colour if needed
                 if i == self.samples - 1:
-                    if self.end_color:
-                        markercolor = self.end_color
+                    if self.end_point_color:
+                        markercolor = self.end_point_color
                 # now draw the markers
                 if self.marker_style == "dot":
                     point = (int(x), int(y))
@@ -1407,11 +1410,10 @@ class PolarWindTrailPlot(PolarWindPlot):
                 self.joinCurve(lasta, lastr, lastx, lasty, thisa, linecolor)
             lastx = x
             lasty = y
-#            # Thats the last samlple done
-#            # Now we draw final vector, if required
-#            vector = (int(self.origin_x), int(self.origin_y), int(x), int(y))
-#            if self.vector_color:
-#                self.draw.line(vector, fill=self.vector_color, width=1)
+            # Thats the last samlple done ,Now we draw final vector, if required
+            # if self.vector_color != "none" :
+                # vector = (int(self.origin_x), int(self.origin_y), int(x), int(y))
+                # self.draw.line(vector, fill=self.vector_color, width=1)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
@@ -1547,16 +1549,21 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # work out our first and last samples based on the direction of the
         # spiral
         if self.centre == "newest":
-            start, stop, step = self.samples - 1, 0, -1
+            start, stop, step = self.samples-1, -1, -1
         else:
-            start, stop, step = 0, self.samples - 1, 1
+            start, stop, step = 0, self.samples, 1
         # iterate over the samples starting from the centre of the spiral
         for i in range(start, stop, step):
             # Calculate radius for this sample. Note assumes equal time periods
             # between samples
 #### TODO handle case where self.samples==1
 #### TODO actually radius should be a function of time, this will then cope with nones/gaps and short set of samples
-            self.radius = i * plot_radius/(self.samples - 1)
+#### NOTE2GR You modified my outer foor loop, but we still need the if below to calculate radius correctly
+            if self.centre == "newest" :
+                i2 = self.samples - 1 - i
+            else :
+                i2 = i
+            self.radius = i2 * plot_radius/(self.samples - 1)
             # if the current direction sample is not None then plot it
             # otherwise skip it
             if self.dir_vec[0][i] is not None:
@@ -1567,7 +1574,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
                 self.y = self.origin_y - self.radius * math.cos(math.radians(self.dir_vec[0][i]))
                 # if this is the first sample then the last point must be set
                 # to this point
-                if i == 0:
+                if i == start:
                     lastx = self.x
                     lasty = self.y
                     lasta = thisa
@@ -1600,7 +1607,12 @@ class PolarWindSpiralPlot(PolarWindPlot):
                 # between samples
 #### TODO handle case where self.samples==1
 #### TODO actually radius should be a function of time, this will then cope with nones/gaps and short set of samples
-                self.radius = i * plot_radius/(self.samples - 1) # TODO trap sample = 0 or 1
+#### NOTE2GR You modified my outer foor loop, but we still need the if below to calculate radius correctly
+                if self.centre == "newest" :
+                    i2 = self.samples - 1 - i
+                else :
+                    i2 = i
+                self.radius = i2 * plot_radius/(self.samples - 1) # TODO trap sample = 0 or 1
                 # if the current direction sample is not None then plot it
                 # otherwise skip it
                 if self.dir_vec[0][i] is not None:
@@ -1611,7 +1623,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     self.y = self.origin_y - self.radius * math.cos(math.radians(self.dir_vec[0][i]))
                     # if this is the first sample then the last point must be set
                     # to this point
-                    if i == 0:
+                    if i == start:
                         lastx = self.x
                         lasty = self.y
                         lasta = thisa
