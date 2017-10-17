@@ -1042,21 +1042,23 @@ class PolarWindRosePlot(PolarWindPlot):
         # plotted in the 'bullseye' on the plot.
         i = 0
         while i < self.samples:
-            if (self.speed_vec[0][i] is None) or (self.dir_vec[0][i] is None):
+            this_speed_vec = self.speed_vec[0][i]
+            this_dir_vec = self.dir_vec[0][i]
+            if (this_speed_vec is None) or (this_dir_vec is None):
                 wind_bin[16][6] += 1
             else:
-                bin = int((self.dir_vec[0][i] + 11.25) / 22.5) % 16
-                if self.speed_vec[0][i] > self.speed_list[5]:
+                bin = int((this_dir_vec + 11.25) / 22.5) % 16 # TODO 16 is a magic number
+                if this_speed_vec > self.speed_list[5]:
                     wind_bin[bin][6] += 1
-                elif self.speed_vec[0][i] > self.speed_list[4]:
+                elif this_speed_vec > self.speed_list[4]:
                     wind_bin[bin][5] += 1
-                elif self.speed_vec[0][i] > self.speed_list[3]:
+                elif this_speed_vec > self.speed_list[3]:
                     wind_bin[bin][4] += 1
-                elif self.speed_vec[0][i] > self.speed_list[2]:
+                elif this_speed_vec > self.speed_list[2]:
                     wind_bin[bin][3] += 1
-                elif self.speed_vec[0][i] > self.speed_list[1]:
+                elif this_speed_vec > self.speed_list[1]:
                     wind_bin[bin][2] += 1
-                elif self.speed_vec[0][i] > 0:
+                elif this_speed_vec > 0:
                     wind_bin[bin][1] += 1
                 else:
                     wind_bin[bin][0] += 1
@@ -1296,17 +1298,19 @@ class PolarWindTrailPlot(PolarWindPlot):
         # iterate over the samples, ignore the first since we don't know what
         # period (delta) it applies to
         for i in range(1, self.samples):
+            this_dir_vec = self.dir_vec[0][i]
+            this_speed_vec = self.speed_vec[0][i]
             # ignore any speeds that are 0 or None and any directions that are
             # None
-            if self.speed_vec[0][i] is None or self.dir_vec[0][i] is None or self.speed_vec[0][i] == 0.0:
+            if this_speed_vec is None or this_dir_vec is None or this_speed_vec == 0.0:
                 continue
             # the period in sec the current speed applies to
             delta = self.time_vec[0][i] - self.time_vec[0][i-1]
             # the corresponding distance
-            dist = self.speed_vec[0][i] * delta / factor
+            dist = this_speed_vec * delta / factor
             # calculate new vector from centre for this point
-            vec_x += dist * math.sin(math.radians((self.dir_vec[0][i] + 180) % 360))
-            vec_y += dist * math.cos(math.radians((self.dir_vec[0][i] + 180) % 360))
+            vec_x += dist * math.sin(math.radians((this_dir_vec + 180) % 360))
+            vec_y += dist * math.cos(math.radians((this_dir_vec + 180) % 360))
             vec_radius = math.sqrt(vec_x**2  + vec_y**2)
             if vec_radius > self.max_vector_radius:
                 self.max_vector_radius = vec_radius
@@ -1339,17 +1343,19 @@ class PolarWindTrailPlot(PolarWindPlot):
             # iterate over the samples, ignore the first since we don't know what
             # period (delta) it applies to
             for i in range(1, self.samples): # TODO NT Check this, its been changed
+                this_dir_vec = self.dir_vec[0][i]
+                this_speed_vec = self.speed_vec[0][i]
                 # ignore any speeds that are 0 or None and any directions that
                 # are None
-                if self.speed_vec[0][i] is None or self.dir_vec[0][i] is None or self.speed_vec[0][i] == 0.0:
+                if this_speed_vec is None or this_dir_vec is None or this_speed_vec == 0.0:
                     continue
                 # the period in sec the current speed applies to
                 delta = self.time_vec[0][i] - self.time_vec[0][i-1]
                 # the corresponding distance
-                dist = self.speed_vec[0][i] * delta / factor
+                dist = this_speed_vec * delta / factor
                 # calculate new vector from centre for this point
-                vec_x += dist * math.sin(math.radians((self.dir_vec[0][i] + 180) % 360))
-                vec_y += dist * math.cos(math.radians((self.dir_vec[0][i] + 180) % 360))
+                vec_x += dist * math.sin(math.radians((this_dir_vec + 180) % 360))
+                vec_y += dist * math.cos(math.radians((this_dir_vec + 180) % 360))
                 # scale the vector to our polar plot area
                 x = self.origin_x + vec_x * scale
                 y = self.origin_y - (vec_y * scale)
@@ -1358,7 +1364,7 @@ class PolarWindTrailPlot(PolarWindPlot):
                     # makes lines function of speed
                     lookup = 5
                     while lookup >= 0: # TODO Yuk, 7 colours is hard coded
-                        if self.speed_vec[0][i] > self.speed_list[lookup] :
+                        if this_speed_vec > self.speed_list[lookup] :
                             markercolor = self.plot_colors[lookup + 1]
                             break
                         lookup -= 1
@@ -1391,21 +1397,23 @@ class PolarWindTrailPlot(PolarWindPlot):
         # iterate over the samples, ignore the first since we don't know what
         # period (delta) it applies to
         for i in range(1, self.samples):
+            this_dir_vec = self.dir_vec[0][i]
+            this_speed_vec = self.speed_vec[0][i]
             # ignore any speeds that are 0 or None and any directions that
             # are None
-            if self.speed_vec[0][i] is None or self.dir_vec[0][i] is None or self.speed_vec[0][i] == 0.0:
+            if this_speed_vec is None or this_dir_vec is None or this_speed_vec == 0.0:
                 continue
             # the period in sec the current speed applies to
             delta = self.time_vec[0][i] - self.time_vec[0][i-1]
             # the corresponding distance
-            dist = self.speed_vec[0][i] * delta / factor
+            dist = this_speed_vec * delta / factor
             # calculate new vector from centre for this point
-            vec_x += dist * math.sin(math.radians((self.dir_vec[0][i] + 180) % 360))
-            vec_y += dist * math.cos(math.radians((self.dir_vec[0][i] + 180) % 360))
+            vec_x += dist * math.sin(math.radians((this_dir_vec + 180) % 360))
+            vec_y += dist * math.cos(math.radians((this_dir_vec + 180) % 360))
             # scale the vector to our polar plot area
             x = self.origin_x + vec_x * scale
             y = self.origin_y - (vec_y * scale)
-            thisa = int(self.dir_vec[0][i])
+            thisa = int(this_dir_vec)
 #### TODO next bit deciding colour is duplicated code, push to function
             if self.line_color == "speed":
                 # makes lines function of speed
@@ -1571,6 +1579,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
             start, stop, step = 0, self.samples, 1
         # iterate over the samples starting from the centre of the spiral
         for i in range(start, stop, step):
+            this_dir_vec = self.dir_vec[0][i]
+            this_speed_vec = self.speed_vec[0][i]
             # Calculate radius for this sample. Note assumes equal time periods
             # between samples
 #### TODO handle case where self.samples==1
@@ -1583,12 +1593,12 @@ class PolarWindSpiralPlot(PolarWindPlot):
             self.radius = i2 * plot_radius/(self.samples - 1)
             # if the current direction sample is not None then plot it
             # otherwise skip it
-            if self.dir_vec[0][i] is not None:
+            if this_dir_vec is not None:
                 # bearing for this sample
-                thisa = int(self.dir_vec[0][i])
+                thisa = int(this_dir_vec)
                 # calculate plot coords for this sample
-                self.x = self.origin_x + self.radius * math.sin(math.radians(self.dir_vec[0][i]))
-                self.y = self.origin_y - self.radius * math.cos(math.radians(self.dir_vec[0][i]))
+                self.x = self.origin_x + self.radius * math.sin(math.radians(this_dir_vec))
+                self.y = self.origin_y - self.radius * math.cos(math.radians(this_dir_vec))
                 # if this is the first sample then the last point must be set
                 # to this point
                 if i == start:
@@ -1598,7 +1608,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     lastr = self.radius
                 # determine line color to be used
                 line_color = self.get_speed_color(self.line_color,
-                                                  self.speed_vec[0][i])
+                                                  this_speed_vec)
                 # draw the line, line style can be 'straight', 'radial' or no
                 # line
                 if self.line_style == "straight" :
@@ -1620,6 +1630,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
             lastr = int(0)
             # iterate over the samples starting from the centre of the spiral
             for i in range(start, stop, step):
+                this_dir_vec = self.dir_vec[0][i]
+                this_speed_vec = self.speed_vec[0][i]
                 # Calculate radius for this sample. Note assumes equal time periods
                 # between samples
 #### TODO handle case where self.samples==1
@@ -1632,12 +1644,12 @@ class PolarWindSpiralPlot(PolarWindPlot):
                 self.radius = i2 * plot_radius/(self.samples - 1) # TODO trap sample = 0 or 1
                 # if the current direction sample is not None then plot it
                 # otherwise skip it
-                if self.dir_vec[0][i] is not None:
+                if this_dir_vec is not None:
                     # bearing for this sample
-                    thisa = int(self.dir_vec[0][i])
+                    thisa = int(this_dir_vec)
                     # calculate plot coords for this sample
-                    self.x = self.origin_x + self.radius * math.sin(math.radians(self.dir_vec[0][i]))
-                    self.y = self.origin_y - self.radius * math.cos(math.radians(self.dir_vec[0][i]))
+                    self.x = self.origin_x + self.radius * math.sin(math.radians(this_dir_vec))
+                    self.y = self.origin_y - self.radius * math.cos(math.radians(this_dir_vec))
                     # if this is the first sample then the last point must be set
                     # to this point
                     if i == start:
@@ -1647,7 +1659,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
                         lastr = self.radius
                     # determine line color to be used
                     marker_color = self.get_speed_color(self.line_color,
-                                                        self.speed_vec[0][i])
+                                                        this_speed_vec)
                     # now draw the markers
                     if self.marker_style == "dot" :
                         point = (int(self.x), int(self.y))
@@ -1839,14 +1851,16 @@ class PolarWindScatterPlot(PolarWindPlot):
             lastx = lasty = lasta = lastr = None
             # iterate over the samples
             for i in range(0, self.samples):
+                this_dir_vec = self.dir_vec[0][i]
+                this_speed_vec = self.speed_vec[0][i]
                 # we only plot if we have values for speed and dir
-                if self.speed_vec[0][i] is not None and self.dir_vec[0][i] is not None:
+                if this_speed_vec is not None and this_dir_vec is not None:
                     # calculate the 'radius' in pixels of the vector
                     # representing the sample to be plotted
-                    radius = plot_radius * self.speed_vec[0][i] / self.max_speed_range
+                    radius = plot_radius * this_speed_vec / self.max_speed_range
                     # calculate the x and y coords of the sample to be plotted
-                    x = int(self.origin_x + radius * math.sin(math.radians(self.dir_vec[0][i])))
-                    y = int(self.origin_y - radius * math.cos(math.radians(self.dir_vec[0][i])))
+                    x = int(self.origin_x + radius * math.sin(math.radians(this_dir_vec)))
+                    y = int(self.origin_y - radius * math.cos(math.radians(this_dir_vec)))
                     # if this is the first sample we can skip it as we have
                     # nothing to plot from
                     if lastr is not None:
@@ -1870,27 +1884,29 @@ class PolarWindScatterPlot(PolarWindPlot):
                             self.draw.line(spoke, fill=line_color, width=1)
                         elif self.line_style == "radial":
                             self.joinCurve(lastx, lasty, lastr, lasta,
-                                           x, y, radius, self.dir_vec[0][i],
+                                           x, y, radius, this_dir_vec,
                                            line_color)
                     # this sample is complete, save the plot values as the
                     # 'last' sample
                     lastx = x
                     lasty = y
-                    lasta = self.dir_vec[0][i]
+                    lasta = this_dir_vec
                     lastr = radius
 
         # plot the markers if required
         if self.marker_style is not None:
             # iterate over the samples
             for i in range(0, self.samples):
+                this_dir_vec = self.dir_vec[0][i]
+                this_speed_vec = self.speed_vec[0][i]
                 # we only plot if we have values for speed and dir
-                if self.speed_vec[0][i] is not None and self.dir_vec[0][i] is not None:
+                if this_speed_vec is not None and this_dir_vec is not None:
                     # calculate the 'radius' in pixels of the vector
                     # representing the sample to be plotted
-                    radius = plot_radius * self.speed_vec[0][i] / self.max_speed_range
+                    radius = plot_radius * this_speed_vec / self.max_speed_range
                     # calculate the x and y coords of the sample to be plotted
-                    x = self.origin_x + radius * math.sin(math.radians(self.dir_vec[0][i]))
-                    y = self.origin_y - radius * math.cos(math.radians(self.dir_vec[0][i]))
+                    x = self.origin_x + radius * math.sin(math.radians(this_dir_vec))
+                    y = self.origin_y - radius * math.cos(math.radians(this_dir_vec))
                     # determine the marker color to be used
                     if self.line_color == "age" :
                         marker_color = color_trans(self.oldest_color,
