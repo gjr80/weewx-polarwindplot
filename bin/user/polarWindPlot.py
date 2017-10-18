@@ -1747,14 +1747,15 @@ class PolarWindScatterPlot(PolarWindPlot):
 
         # we don't display a legend on a scatter plot so force legend to False
         self.legend = False
-        # get marker_type, default to 'circle'
+        #  Get marker_type, can be 'cross', 'x', 'circle', 'box' or 'none'. Default to  'circle'
         self.marker_type = self.plot_dict.get('marker_type', 'circle')
+        if self.marker_type == 'none':
+            self.marker_type = None
 
-        # Get line style, can be 'straight', 'spoke', 'radial' or None. Default
-        # to 'straight'
+        # Get line style, can be 'straight', 'spoke', 'radial' or 'none'. Default to 'straight'
         _style = self.plot_dict.get('line_style', 'straight')
         # we have a line style but is it one we know about
-        if _style is not None and _style.lower() not in ['straight', 'spoke', 'radial']:
+        if _style is not None and _style.lower() not in ['straight', 'spoke', 'radial', 'none']:
             # it's a line style I don't understand, set line_style to
             # 'straight' so that something is displayed then log it
             self.line_style = 'straight'
@@ -1845,7 +1846,7 @@ class PolarWindScatterPlot(PolarWindPlot):
         # plot any markers
 
         # plot the scatter line if required
-        if self.line_style is not None:
+        if self.line_style != 'none':
             # initialise values for the last plot point, use None as there is
             # no last point the first time around
             lastx = lasty = lasta = lastr = None
@@ -1882,7 +1883,7 @@ class PolarWindScatterPlot(PolarWindPlot):
                         elif self.line_style == "spoke":
                             spoke = (self.origin_x, self.origin_y, x, y)
                             self.draw.line(spoke, fill=line_color, width=1)
-                        elif self.line_style == "radial":
+                        elif self.line_style == "radial": # TODO last one should be default else
                             self.joinCurve(lastx, lasty, lastr, lasta,
                                            x, y, radius, this_dir_vec,
                                            line_color)
@@ -1915,20 +1916,38 @@ class PolarWindScatterPlot(PolarWindPlot):
                     else :
                         marker_color = self.line_color
                     # now draw the markers
-                    if self.marker_type == "dot" :
-                        point = (int(x), int(y))
-                        self.draw.point(point, fill=marker_color)
-                    elif self.marker_type == "circle" :
-                        bbox = (int(x - 1), int(y - 1),
-                                int(x + 1), int(y + 1))
-                        self.draw.ellipse(bbox,
-                                          outline=marker_color,
-                                          fill=marker_color)
-                    elif self.marker_type == "cross" :
-                        horline = (int(x - 1), int(y), int(x + 1), int(y))
-                        verline = (int(x), int(y - 1), int(x),int(y + 1))
-                        self.draw.line(horline, fill=marker_color, width=1)
-                        self.draw.line(verline, fill=marker_color, width=1)
+                    _scale = 1 # TODO implement this as config option marker_size
+                    # if self.marker_type == "dot" :
+                        # point = (int(x), int(y))
+                        # self.draw.point(point, fill=marker_color)
+                    if self.marker_type == "cross" :
+                        line = (int(x - _scale), int(y), int(x + _scale), int(y))
+                        self.draw.line(line, fill=marker_color, width=1)
+                        line = (int(x), int(y - _scale), int(x), int(y + _scale))
+                        self.draw.line(line, fill=marker_color, width=1)
+                    elif self.marker_type == "x" :
+                        line = (int(x - _scale), int(y - _scale), int(x + _scale), int(y + _scale))
+                        self.draw.line(line, fill=marker_color, width=1)
+                        line = (int(x + _scale), int(y - _scale), int(x - _scale), int(y + _scale))
+                        self.draw.line(line, fill=marker_color, width=1)
+                    elif self.marker_type == "box" :
+                        line = (int(x - _scale), int(y-_scale), int(x + _scale), int(y-_scale))
+                        self.draw.line(line, fill=marker_color, width=1)
+                        line = (int(x+_scale), int(y - _scale), int(x+_scale), int(y + _scale))
+                        self.draw.line(line, fill=marker_color, width=1)
+                        line = (int(x - _scale), int(y-_scale), int(x - _scale), int(y+_scale))
+                        self.draw.line(line, fill=marker_color, width=1)
+                        line = (int(x-_scale), int(y + _scale), int(x+_scale), int(y + _scale))
+                        self.draw.line(line, fill=marker_color, width=1)
+                    else :
+                        # Assume circle or dot
+                        bbox = (int(x - _scale), int(y - _scale),
+                                int(x + _scale), int(y + _scale))
+                        if self.marker_type == "dot" :
+                            self.draw.ellipse(bbox, outline=marker_color, fill=marker_color)
+                        else :
+                            # Assume circle
+                            self.draw.ellipse(bbox, outline=marker_color)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
