@@ -894,6 +894,46 @@ class PolarWindPlot(object):
         """
 
         return None
+        
+    def renderMarker(self, x, y, size, marker_type, marker_color):
+        """Render a marker.
+
+        Inputs:
+            x: start point plot x coordinate
+            y: start point plot y coordinate
+            size: start point vector radius
+            style: start point vector direction
+            color:   color to be used
+        """
+        if marker_type == "cross" :
+            line = (int(x - size), int(y), int(x + size), int(y))
+            self.draw.line(line, fill=marker_color, width=1)
+            line = (int(x), int(y - size), int(x), int(y + size))
+            self.draw.line(line, fill=marker_color, width=1)
+        elif marker_type == "x" :
+            line = (int(x - size), int(y - size), int(x + size), int(y + size))
+            self.draw.line(line, fill=marker_color, width=1)
+            line = (int(x + size), int(y - size), int(x - size), int(y + size))
+            self.draw.line(line, fill=marker_color, width=1)
+        elif marker_type == "box" :
+            line = (int(x - size), int(y - size), int(x + size), int(y - size))
+            self.draw.line(line, fill=marker_color, width=1)
+            line = (int(x + size), int(y - size), int(x+size), int(y + size))
+            self.draw.line(line, fill=marker_color, width=1)
+            line = (int(x - size), int(y - size), int(x - size), int(y + size))
+            self.draw.line(line, fill=marker_color, width=1)
+            line = (int(x - size), int(y + size), int(x + size), int(y + size))
+            self.draw.line(line, fill=marker_color, width=1)
+        else :
+            # Assume circle or dot
+            bbox = (int(x - size), int(y - size),
+                    int(x + size), int(y + size))
+            if marker_type == "dot" :
+                self.draw.ellipse(bbox, outline=marker_color, fill=marker_color)
+            else :
+                # Assume circle
+                self.draw.ellipse(bbox, outline=marker_color)
+        return None
 
     def joinCurve(self, start_x, start_y, start_r, start_a, end_x, end_y, end_r, end_a, color):
         """Join two points with a curve.
@@ -1376,18 +1416,8 @@ class PolarWindTrailPlot(PolarWindPlot):
                     if self.end_point_color:
                         markercolor = self.end_point_color
                 # now draw the markers
-                if self.marker_type == "dot":
-                    point = (int(x), int(y))
-                    self.draw.point(point, fill=markercolor)
-                elif self.marker_type == "circle":
-                    bbox = (int(x - 1), int(y - 1), int(x + 1), int(y + 1))
-                    self.draw.ellipse(bbox, outline=markercolor,
-                                      fill=markercolor)
-                elif self.marker_type == "cross":
-                    horline = (int(x - 1), int(y), int(x + 1), int(y))
-                    verline = (int(x), int(y - 1), int(x), int(y + 1))
-                    self.draw.line(horline, fill=markercolor, width=1)
-                    self.draw.line(verline, fill=markercolor, width=1)
+                _scale = 4 # TODO implement this as config option marker_size
+                self.renderMarker(x, y, _scale, self.marker_type, markercolor)
 
         # now plot the lines
         lastx = self.origin_x
@@ -1661,20 +1691,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     marker_color = self.get_speed_color(self.line_color,
                                                         this_speed_vec)
                     # now draw the markers
-                    if self.marker_type == "dot" :
-                        point = (int(self.x), int(self.y))
-                        self.draw.point(point, fill=marker_color)
-                    elif self.marker_type == "circle" :
-                        bbox = (int(self.x - 1), int(self.y - 1),
-                                int(self.x + 1), int(self.y + 1))
-                        self.draw.ellipse(bbox, outline=marker_color, fill=marker_color)
-                    elif self.marker_type == "cross" :
-                        horline = (int(self.x - 1), int(self.y),
-                                   int(self.x + 1), int(self.y))
-                        verline = (int(self.x), int(self.y - 1),
-                                   int(self.x), int(self.y + 1))
-                        self.draw.line(horline, fill=marker_color, width=1)
-                        self.draw.line(verline, fill=marker_color, width=1)
+                    _scale = 4 # TODO implement this as config option marker_size
+                    self.renderMarker(self.x, self.y, _scale, self.marker_type, marker_color)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
@@ -1916,38 +1934,8 @@ class PolarWindScatterPlot(PolarWindPlot):
                     else :
                         marker_color = self.line_color
                     # now draw the markers
-                    _scale = 1 # TODO implement this as config option marker_size
-                    # if self.marker_type == "dot" :
-                        # point = (int(x), int(y))
-                        # self.draw.point(point, fill=marker_color)
-                    if self.marker_type == "cross" :
-                        line = (int(x - _scale), int(y), int(x + _scale), int(y))
-                        self.draw.line(line, fill=marker_color, width=1)
-                        line = (int(x), int(y - _scale), int(x), int(y + _scale))
-                        self.draw.line(line, fill=marker_color, width=1)
-                    elif self.marker_type == "x" :
-                        line = (int(x - _scale), int(y - _scale), int(x + _scale), int(y + _scale))
-                        self.draw.line(line, fill=marker_color, width=1)
-                        line = (int(x + _scale), int(y - _scale), int(x - _scale), int(y + _scale))
-                        self.draw.line(line, fill=marker_color, width=1)
-                    elif self.marker_type == "box" :
-                        line = (int(x - _scale), int(y-_scale), int(x + _scale), int(y-_scale))
-                        self.draw.line(line, fill=marker_color, width=1)
-                        line = (int(x+_scale), int(y - _scale), int(x+_scale), int(y + _scale))
-                        self.draw.line(line, fill=marker_color, width=1)
-                        line = (int(x - _scale), int(y-_scale), int(x - _scale), int(y+_scale))
-                        self.draw.line(line, fill=marker_color, width=1)
-                        line = (int(x-_scale), int(y + _scale), int(x+_scale), int(y + _scale))
-                        self.draw.line(line, fill=marker_color, width=1)
-                    else :
-                        # Assume circle or dot
-                        bbox = (int(x - _scale), int(y - _scale),
-                                int(x + _scale), int(y + _scale))
-                        if self.marker_type == "dot" :
-                            self.draw.ellipse(bbox, outline=marker_color, fill=marker_color)
-                        else :
-                            # Assume circle
-                            self.draw.ellipse(bbox, outline=marker_color)
+                    _scale = 4 # TODO implement this as config option marker_size
+                    self.renderMarker(x, y, _scale, self.marker_type, marker_color)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
