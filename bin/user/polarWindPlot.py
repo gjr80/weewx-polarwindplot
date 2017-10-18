@@ -1207,8 +1207,8 @@ class PolarWindTrailPlot(PolarWindPlot):
         # initialise my superclass
         super(PolarWindTrailPlot, self).__init__(skin_dict, plot_dict)
 
-        # get marker_style, default to 'circle'
-        self.marker_style = plot_dict.get('marker_style', 'circle')
+        # get marker_type, default to 'circle'
+        self.marker_type = plot_dict.get('marker_type', 'circle')
         # get line_style, default to radial
         self.line_style = self.plot_dict.get('line_style', 'none')
 
@@ -1337,7 +1337,7 @@ class PolarWindTrailPlot(PolarWindPlot):
         # plot any markers
 
         # plot the markers
-        if self.marker_style is not None:
+        if self.marker_type is not None:
             vec_x = 0
             vec_y = 0
             # iterate over the samples, ignore the first since we don't know what
@@ -1376,14 +1376,14 @@ class PolarWindTrailPlot(PolarWindPlot):
                     if self.end_point_color:
                         markercolor = self.end_point_color
                 # now draw the markers
-                if self.marker_style == "dot":
+                if self.marker_type == "dot":
                     point = (int(x), int(y))
                     self.draw.point(point, fill=markercolor)
-                elif self.marker_style == "circle":
+                elif self.marker_type == "circle":
                     bbox = (int(x - 1), int(y - 1), int(x + 1), int(y + 1))
                     self.draw.ellipse(bbox, outline=markercolor,
                                       fill=markercolor)
-                elif self.marker_style == "cross":
+                elif self.marker_type == "cross":
                     horline = (int(x - 1), int(y), int(x + 1), int(y))
                     verline = (int(x), int(y - 1), int(x), int(y + 1))
                     self.draw.line(horline, fill=markercolor, width=1)
@@ -1478,8 +1478,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # Display oldest or newest data at centre? Default to oldest.
         self.centre = self.plot_dict.get('centre', 'oldest')
 
-        # get marker_style, default to 'circle'
-        self.marker_style = self.plot_dict.get('marker_style', 'circle')
+        # get marker_type, default to 'circle'
+        self.marker_type = self.plot_dict.get('marker_type', 'circle')
         # get line_style, default to radial
         self.line_style = self.plot_dict.get('line_style', 'radial')
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
@@ -1623,7 +1623,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
                 lastr = self.radius
 
         # plot the markers if required
-        if self.marker_style is not None:
+        if self.marker_type is not None:
             lastx = self.origin_x
             lasty = self.origin_y
             lasta = int(0)
@@ -1661,14 +1661,14 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     marker_color = self.get_speed_color(self.line_color,
                                                         this_speed_vec)
                     # now draw the markers
-                    if self.marker_style == "dot" :
+                    if self.marker_type == "dot" :
                         point = (int(self.x), int(self.y))
                         self.draw.point(point, fill=marker_color)
-                    elif self.marker_style == "circle" :
+                    elif self.marker_type == "circle" :
                         bbox = (int(self.x - 1), int(self.y - 1),
                                 int(self.x + 1), int(self.y + 1))
                         self.draw.ellipse(bbox, outline=marker_color, fill=marker_color)
-                    elif self.marker_style == "cross" :
+                    elif self.marker_type == "cross" :
                         horline = (int(self.x - 1), int(self.y),
                                    int(self.x + 1), int(self.y))
                         verline = (int(self.x), int(self.y - 1),
@@ -1747,8 +1747,8 @@ class PolarWindScatterPlot(PolarWindPlot):
 
         # we don't display a legend on a scatter plot so force legend to False
         self.legend = False
-        # get marker_style, default to 'circle'
-        self.marker_style = self.plot_dict.get('marker_style', 'circle')
+        # get marker_type, default to 'circle'
+        self.marker_type = self.plot_dict.get('marker_type', 'circle')
 
         # Get line style, can be 'straight', 'spoke', 'radial' or None. Default
         # to 'straight'
@@ -1894,7 +1894,7 @@ class PolarWindScatterPlot(PolarWindPlot):
                     lastr = radius
 
         # plot the markers if required
-        if self.marker_style is not None:
+        if self.marker_type is not None:
             # iterate over the samples
             for i in range(0, self.samples):
                 this_dir_vec = self.dir_vec[0][i]
@@ -1915,16 +1915,16 @@ class PolarWindScatterPlot(PolarWindPlot):
                     else :
                         marker_color = self.line_color
                     # now draw the markers
-                    if self.marker_style == "dot" :
+                    if self.marker_type == "dot" :
                         point = (int(x), int(y))
                         self.draw.point(point, fill=marker_color)
-                    elif self.marker_style == "circle" :
+                    elif self.marker_type == "circle" :
                         bbox = (int(x - 1), int(y - 1),
                                 int(x + 1), int(y + 1))
                         self.draw.ellipse(bbox,
                                           outline=marker_color,
                                           fill=marker_color)
-                    elif self.marker_style == "cross" :
+                    elif self.marker_type == "cross" :
                         horline = (int(x - 1), int(y), int(x + 1), int(y))
                         verline = (int(x), int(y - 1), int(x),int(y + 1))
                         self.draw.line(horline, fill=marker_color, width=1)
