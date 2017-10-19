@@ -944,11 +944,11 @@ class PolarWindPlot(object):
         Inputs:
             start_x: start point plot x coordinate
             start_y: start point plot y coordinate
-            start_r: start point vector radius
+            start_r: start point vector radius (in pixels)
             start_a: start point vector direction
             end_x:   end point plot x coordinate
             end_y:   end point plot y coordinate
-            end_r:   end point vector radius
+            end_r:   end point vector radius (in pixels)
             end_a:   end point vector direction
             color:   color to be used
         """
@@ -1337,7 +1337,7 @@ class PolarWindTrailPlot(PolarWindPlot):
             factor = 3600.0
         # iterate over the samples, ignore the first since we don't know what
         # period (delta) it applies to
-        for i in range(1, self.samples):
+        for i in range(1, self.samples): # TODO NT Check this, its been changed to 1
             this_dir_vec = self.dir_vec[0][i]
             this_speed_vec = self.speed_vec[0][i]
             # ignore any speeds that are 0 or None and any directions that are
@@ -1382,7 +1382,7 @@ class PolarWindTrailPlot(PolarWindPlot):
             vec_y = 0
             # iterate over the samples, ignore the first since we don't know what
             # period (delta) it applies to
-            for i in range(1, self.samples): # TODO NT Check this, its been changed
+            for i in range(1, self.samples): # TODO NT Check this, its been changed to 1
                 this_dir_vec = self.dir_vec[0][i]
                 this_speed_vec = self.speed_vec[0][i]
                 # ignore any speeds that are 0 or None and any directions that
@@ -1393,7 +1393,7 @@ class PolarWindTrailPlot(PolarWindPlot):
                 delta = self.time_vec[0][i] - self.time_vec[0][i-1]
                 # the corresponding distance
                 dist = this_speed_vec * delta / factor
-                # calculate new vector from centre for this point
+                # calculate new running vector from centre for this point
                 vec_x += dist * math.sin(math.radians((this_dir_vec + 180) % 360))
                 vec_y += dist * math.cos(math.radians((this_dir_vec + 180) % 360))
                 # scale the vector to our polar plot area
@@ -1424,6 +1424,11 @@ class PolarWindTrailPlot(PolarWindPlot):
         lasty = self.origin_y
         vec_x = 0
         vec_y = 0
+        # For the first sample the previous point must be set to the origin
+        lastx = self.origin_x
+        lasty = self.origin_y
+        lasta = 0
+        lastr = 0
         # iterate over the samples, ignore the first since we don't know what
         # period (delta) it applies to
         for i in range(1, self.samples):
@@ -1437,13 +1442,14 @@ class PolarWindTrailPlot(PolarWindPlot):
             delta = self.time_vec[0][i] - self.time_vec[0][i-1]
             # the corresponding distance
             dist = this_speed_vec * delta / factor
-            # calculate new vector from centre for this point
+            # calculate new running vector from centre for this point
             vec_x += dist * math.sin(math.radians((this_dir_vec + 180) % 360))
             vec_y += dist * math.cos(math.radians((this_dir_vec + 180) % 360))
             # scale the vector to our polar plot area
             x = self.origin_x + vec_x * scale
             y = self.origin_y - (vec_y * scale)
-            thisa = int(this_dir_vec)
+            radius = math.sqrt(vec_x**2 + vec_y**2) * scale
+            thisa = math.degrees(math.atan2(vec_y,vec_x))
 #### TODO next bit deciding colour is duplicated code, push to function
             if self.line_color == "speed":
                 # makes lines function of speed
@@ -1462,16 +1468,18 @@ class PolarWindTrailPlot(PolarWindPlot):
                 vector = (int(lastx), int(lasty), int(x), int(y))
                 self.draw.line(vector, fill=linecolor, width=1)
             elif self.line_style == "radial":
-                self.joinCurve(lasta, lastr, lastx, lasty, thisa, linecolor)
-                #self.joinCurve(lastx, lasty, lastr, lasta,
-                #                           x, y, radius, thisa,
-                #                           linecolor)
+                #self.joinCurve(lasta, lastr, lastx, lasty, thisa, linecolor)
+                self.joinCurve(lastx, lasty, lastr, lasta,
+                                           x, y, radius, thisa,
+                                           linecolor)
             lastx = x
             lasty = y
-            # Thats the last samlple done ,Now we draw final vector, if required
-            # if self.vector_color != "none" :
-                # vector = (int(self.origin_x), int(self.origin_y), int(x), int(y))
-                # self.draw.line(vector, fill=self.vector_color, width=1)
+            lasta = thisa
+            lastr = radius
+        # Thats the last samlple done ,Now we draw final vector, if required
+        # if self.vector_color != "none" :
+        vector = (int(self.origin_x), int(self.origin_y), int(x), int(y))
+        self.draw.line(vector, fill='red', width=1)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
