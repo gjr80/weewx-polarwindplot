@@ -973,8 +973,8 @@ class PolarWindPlot(object):
             # calculate the radius of the vector of next point we will draw to
             radius = start_r + (end_r - start_r) * a / angle_span
             # get the x and y plot coords of the next point
-            x = int(self.origin_x + radius * math.sin(math.radians(start + (a * dir))))
-            y = int(self.origin_y - radius * math.cos(math.radians(start + (a * dir))))
+            x = int(self.origin_x + radius * math.sin(math.radians(start_a + (a * dir))))
+            y = int(self.origin_y - radius * math.cos(math.radians(start_a + (a * dir))))
             # define the start and end points of the line between the current
             # point to the last
             xy = (last_x, last_y, x, y)
@@ -1463,6 +1463,9 @@ class PolarWindTrailPlot(PolarWindPlot):
                 self.draw.line(vector, fill=linecolor, width=1)
             elif self.line_style == "radial":
                 self.joinCurve(lasta, lastr, lastx, lasty, thisa, linecolor)
+                #self.joinCurve(lastx, lasty, lastr, lasta,
+                #                           x, y, radius, thisa,
+                #                           linecolor)
             lastx = x
             lasty = y
             # Thats the last samlple done ,Now we draw final vector, if required
@@ -1645,7 +1648,10 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     vector = (int(lastx), int(lasty), int(self.x), int(self.y))
                     self.draw.line(vector, fill=line_color, width=1)
                 elif self.line_style == "radial" :
-                    self.joinCurve(lasta, lastr, lastx, lasty, thisa, line_color)
+                    #self.joinCurve(lasta, lastr, lastx, lasty, thisa, line_color)
+                    self.joinCurve(lastx, lasty, lastr, lasta,
+                                           self.x, self.y, self.radius, thisa,
+                                           line_color)
                 # this sample is complete, save it as the 'last' sample
                 lastx = self.x
                 lasty = self.y
@@ -1782,11 +1788,10 @@ class PolarWindScatterPlot(PolarWindPlot):
             # we have a valid line style so save it
             self.line_style = _style
 
-        # Get line_color, can be 'speed', 'age' or a valid color. Default to
-        # 'age'.
+        # Get line_color, can be 'age' or a valid color. Default to 'age'.
         _line_color = plot_dict.get('line_color', 'age')
         # we have a line color but is it valid or a style we know about
-        if _line_color in ['age', 'speed']:
+        if _line_color in ['age']:
             # it's a color style I understand
             self.line_color = _line_color
         else:
