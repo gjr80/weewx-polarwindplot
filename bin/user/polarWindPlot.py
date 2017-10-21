@@ -199,13 +199,13 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                     # accumulate options from parent nodes
                     source_options = accumulateLeaves(self.polar_dict[span][plot][source])
 
-                    # Set plot title if explicitly requested, default to no
-                    # title. Config option 'label' used for consistency with
-                    # skin.conf ImageGenerator sections.
-                    plot_obj.set_title(source_options.get('label', ''))
-
                     # set timestamp
                     plot_obj.set_timestamp(plotgen_ts, source_options)
+
+                    # Get plot title if explicitly requested, default to no
+                    # title. Config option 'label' used for consistency with
+                    # skin.conf ImageGenerator sections.
+                    title = source_options.get('label', '')
 
                     # Determine the speed and direction archive fields to be
                     # used. Can really only plot windSpeed and windGust, if
@@ -241,17 +241,17 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                                       len(speed_time_vec[0]),
                                       units)
 
-                # call the render() method of the polar plot object to
-                # render the entire plot and produce an image
-                image = plot_obj.render()
+                    # call the render() method of the polar plot object to
+                    # render the entire plot and produce an image
+                    image = plot_obj.render(title)
 
-                # now save the file, wrap in a try..except in case we have
-                # a problem saving
-                try:
-                    image.save(img_file)
-                    ngen += 1
-                except IOError, e:
-                    loginf("Unable to save to file '%s': %s" % (img_file, e))
+                    # now save the file, wrap in a try..except in case we have
+                    # a problem saving
+                    try:
+                        image.save(img_file)
+                        ngen += 1
+                    except IOError, e:
+                        loginf("Unable to save to file '%s': %s" % (img_file, e))
         if self.log_success:
             loginf("Generated %d images for %s in %.2f seconds" % (ngen,
                                                                    self.skin_dict['REPORT_NAME'],
@@ -354,8 +354,6 @@ class PolarWindPlot(object):
 
         # get config dict for polar plots
         self.plot_dict = plot_dict
-        # do we display a legend, default to True
-        self.legend = tobool(self.plot_dict.get('legend', True))
 
         # Set image attributes
         self.image_width = int(self.plot_dict['image_width'])
@@ -462,6 +460,12 @@ class PolarWindPlot(object):
         """
 
         self.title = to_unicode(title)
+        if title:
+            self.title_width, self.title_height = self.draw.textsize(self.title,
+                                                                     font=self.label_font)
+        else:
+            self.title_width = 0
+            self.title_height = 0
 
     def set_timestamp(self, ts, options):
         """Set the timestamp to be displayed on the plot.
@@ -490,25 +494,26 @@ class PolarWindPlot(object):
         be displayed.
         """
 
-        # Calculate the diameter of the circular plot space in pixels. Two
-        # diameters are calculated, one based on image height and one based on
-        # image width. We will take the smallest one. To prevent optical
-        # distortion for small plots diameter will be divisible by 22
-        self.max_plot_dia = min(int((self.image_height - 2 * self.plot_border - self.title_height / 2) / 22.0) * 22,
-                                int((self.image_width - (2 * self.plot_border + self.legend_width)) / 22.0) * 22)
-        if self.image_width > self.image_height:
-            # if the plot is wider than its height
-            width, height = self.draw.textsize("W", font=self.plot_font)
-            # x coord of polar plot origin(0,0) top left corner
-            self.origin_x = self.plot_border + width + 2 + self.max_plot_dia / 2
-            # y coord of polar plot origin(0,0) is top left corner
-            self.origin_y = int(self.image_height / 2)
-        else:
-            # if the plot is square or higher than its width
-            # x coord of polar plot origin(0,0) top left corner
-            self.origin_x = 2 * self.plot_border + self.max_plot_dia / 2
-            # y coord of polar plot origin(0,0) is top left corner
-            self.origin_y = 2 * self.plot_border + self.max_plot_dia / 2
+        # calculate plot diameter
+        # first calculate the size of the cardinal compass direction labels
+        _w, _n_height = self.draw.textsize(self.north, font=self.plot_font)
+        _w, _s_height = self.draw.textsize(self.south, font=self.plot_font)
+        _w_width, _h = self.draw.textsize(self.west, font=self.plot_font)
+        _e_width, _h = self.draw.textsize(self.east, font=self.plot_font)
+
+        # now calculate the plot area diameter in pixels, two diameters are
+        # calculated, one based on image height and one based on image width
+        _height_based = self.image_height - 2 * self.plot_border - self.title_height - (_n_height + 1) - (_s_height + 3)
+        _width_based = self.image_width - 2 * self.plot_border - self.legend_width
+        # take the smallest so that we have a guaranteed fit
+        _diameter =  min(_height_based, _width_based)
+        # to prevent optical distortion for small plots make diameter a multiple
+        # of 22
+        self.max_plot_dia = int(_diameter / 22.0) * 22
+
+        # determine plot origin
+        self.origin_x = int((self.image_width - self.legend_width - _e_width + _w_width) / 2)
+        self.origin_y = 1 + int((self.image_height + self.title_height + _n_height - _s_height) / 2.0)
 
     def set_legend(self, percentage=False):
         """Setup the legend for a plot.
@@ -516,21 +521,24 @@ class PolarWindPlot(object):
         Determine the legend width and title.
         """
 
-        # do we display % values against each legend speed label
-        self.legend_percentage = percentage
-        # create some worst case (width) text to use in estimating the legend
-        # width
-        if percentage:
-            _text = '0 (100%)'
+        if self.legend:
+            # do we display % values against each legend speed label
+            self.legend_percentage = percentage
+            # create some worst case (width) text to use in estimating the legend
+            # width
+            if percentage:
+                _text = '0 (100%)'
+            else:
+                _text = '999'
+            # estimate width of the legend
+            width, height = self.draw.textsize(_text, font=self.legend_font)
+            self.legend_width = int(width + 2 * self.legend_bar_width + 1.5 * self.plot_border)
+            # get legend title
+            self.legend_title = self.get_legend_title(self.speed_field)
         else:
-            _text = '999'
-        # estimate width of the legend
-        width, height = self.draw.textsize(_text, font=self.legend_font)
-        self.legend_width = int(width + 2 * self.legend_bar_width + 1.5 * self.plot_border)
-        # get legend title
-        self.legend_title = self.get_legend_title(self.speed_field)
+            self.legend_width = 0
 
-    def render(self, speed_vec, dir_vec):
+    def render(self, title):
         """Main entry point to render a plot.
 
         Child classes should define their own render() method.
@@ -811,15 +819,13 @@ class PolarWindPlot(object):
 
         # draw plot title (label) if any
         if self.title:
-            width, height = self.draw.textsize(self.title, font=self.label_font)
-            self.title_height = height
             try:
-                self.draw.text((self.origin_x-width / 2, height / 2),
+                self.draw.text((self.origin_x-self.title_width / 2, self.title_height / 2),
                                self.title,
                                fill=self.label_font_color,
                                font=self.label_font)
             except UnicodeEncodeError:
-                self.draw.text((self.origin_x - width / 2, height / 2),
+                self.draw.text((self.origin_x - self.title_width / 2, self.title_height / 2),
                                self.title.encode("utf-8"),
                                fill=self.label_font_color,
                                font=self.label_font)
@@ -894,7 +900,7 @@ class PolarWindPlot(object):
         """
 
         return None
-        
+
     def renderMarker(self, x, y, size, marker_type, marker_color):
         """Render a marker.
 
@@ -1032,10 +1038,12 @@ class PolarWindRosePlot(PolarWindPlot):
         # initialise my superclass
         super(PolarWindRosePlot, self).__init__(skin_dict, plot_dict)
 
+        # do we display a legend, default to True
+        self.legend = tobool(self.plot_dict.get('legend', True))
         # get petal width, if not defined then set default to 16
         self.petal_width = int(self.plot_dict.get('windrose_plot_petal_width', 16))
 
-    def render(self):
+    def render(self, title):
         """Main entry point to generate a polar wind rose plot."""
 
         # get an Image object for our plot
@@ -1046,12 +1054,14 @@ class PolarWindRosePlot(PolarWindPlot):
         self.get_font_handles()
         # setup the legend
         self.set_legend(percentage=True)
+        # setup the plot title
+        self.set_title(title)
 #### This needs to be fixed, should not render until setup complete
-        if self.title:
-            width, height = self.draw.textsize(self.title, font=self.label_font)
-            self.title_height = height
-        else:
-            self.title_height = 0
+#        if self.title:
+#            width, height = self.draw.textsize(self.title, font=self.label_font)
+#            self.title_height = height
+#        else:
+#            self.title_height = 0
 
         # set up the background polar grid
         self.set_polar_grid()
@@ -1247,19 +1257,21 @@ class PolarWindTrailPlot(PolarWindPlot):
         # initialise my superclass
         super(PolarWindTrailPlot, self).__init__(skin_dict, plot_dict)
 
+        # do we display a legend, default to True
+        self.legend = tobool(self.plot_dict.get('legend', True))
         # get marker_type, default to 'circle'
-        self.marker_type = plot_dict.get('marker_type', 'circle')
+        self.marker_type = self.plot_dict.get('marker_type', 'circle')
         # get line_style, default to radial
         self.line_style = self.plot_dict.get('line_style', 'none')
 
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
         # 'speed'.
-        self.line_color = plot_dict.get('line_color', 'speed')
+        self.line_color = self.plot_dict.get('line_color', 'speed')
         if self.line_color not in ['speed', 'age']:
             self.line_color = parse_color(self.line_color, 'speed')
 
         # Get marker_color, can be 'speed' or a valid color. Default to 'speed'.
-        self.marker_color = plot_dict.get('marker_color', 'speed')
+        self.marker_color = self.plot_dict.get('marker_color', 'speed')
         if self.marker_color != 'speed':
             self.marker_color = parse_color(self.marker_color, 'speed')
 
@@ -1280,7 +1292,7 @@ class PolarWindTrailPlot(PolarWindPlot):
         # set some properties to startup defaults
         self.max_vector_radius = None
 
-    def render(self):
+    def render(self, title):
         """Main entry point to generate a polar wind rose plot."""
         """         # Setup windrose plot. Plot circles, range rings, range
                     # labels, N-S and E-W centre lines and compass pont labels
@@ -1296,12 +1308,14 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.get_font_handles()
         # setup the legend
         self.set_legend()
+        # setup the plot title
+        self.set_title(title)
 #### This needs to be fixed, should not render until setup complete
-        if self.title:
-            width, height = self.draw.textsize(self.title, font=self.label_font)
-            self.title_height = height
-        else:
-            self.title_height = 0
+#        if self.title:
+#            width, height = self.draw.textsize(self.title, font=self.label_font)
+#            self.title_height = height
+#        else:
+#            self.title_height = 0
 
         # set up the background polar grid
         self.set_polar_grid()
@@ -1516,6 +1530,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # initialise my superclass
         super(PolarWindSpiralPlot, self).__init__(skin_dict, plot_dict)
 
+        # do we display a legend, default to True
+        self.legend = tobool(self.plot_dict.get('legend', True))
         # Display oldest or newest data at centre? Default to oldest.
         self.centre = self.plot_dict.get('centre', 'oldest')
 
@@ -1525,17 +1541,17 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.line_style = self.plot_dict.get('line_style', 'radial')
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
         # 'speed'.
-        self.line_color = plot_dict.get('line_color', 'speed')
+        self.line_color = self.plot_dict.get('line_color', 'speed')
         if self.line_color not in ['speed', 'age']:
             self.line_color = parse_color(self.line_color, 'speed')
         # Get marker_color, can be 'speed' or a valid color. Default to 'speed'.
-        self.marker_color = plot_dict.get('marker_color', 'speed')
+        self.marker_color = self.plot_dict.get('marker_color', 'speed')
         if self.marker_color != 'speed':
             self.marker_color = parse_color(self.marker_color, 'speed')
         # get axis label format
         self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
 
-    def render(self):
+    def render(self, title):
         """Main entry point to generate a spiral polar wind plot."""
 
         # get an Image object for our plot
@@ -1546,12 +1562,14 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.get_font_handles()
         # setup the legend
         self.set_legend()
+        # setup the plot title
+        self.set_title(title)
 #### This needs to be fixed, should not render until setup complete
-        if self.title:
-            width, height = self.draw.textsize(self.title, font=self.label_font)
-            self.title_height = height
-        else:
-            self.title_height = 0
+#        if self.title:
+#            width, height = self.draw.textsize(self.title, font=self.label_font)
+#            self.title_height = height
+#        else:
+#            self.title_height = 0
 
         # set up the background polar grid
         self.set_polar_grid()
@@ -1797,7 +1815,7 @@ class PolarWindScatterPlot(PolarWindPlot):
             self.line_style = _style
 
         # Get line_color, can be 'age' or a valid color. Default to 'age'.
-        _line_color = plot_dict.get('line_color', 'age')
+        _line_color = self.plot_dict.get('line_color', 'age')
         # we have a line color but is it valid or a style we know about
         if _line_color in ['age']:
             # it's a color style I understand
@@ -1821,7 +1839,7 @@ class PolarWindScatterPlot(PolarWindPlot):
         # get axis label format
         self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
 
-    def render(self):
+    def render(self, title):
         """Main entry point to generate a scatter polar wind plot."""
 
         # get an Image object for our plot
@@ -1830,12 +1848,14 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.draw = ImageDraw.Draw(image)
         # get handles for the fonts we will use
         self.get_font_handles()
+        # setup the plot title
+        self.set_title(title)
 #### This needs to be fixed, should not render until setup complete
-        if self.title:
-            width, height = self.draw.textsize(self.title, font=self.label_font)
-            self.title_height = height
-        else:
-            self.title_height = 0
+#        if self.title:
+#            width, height = self.draw.textsize(self.title, font=self.label_font)
+#            self.title_height = height
+#        else:
+#            self.title_height = 0
 
         # set up the background polar grid
         self.set_polar_grid()
