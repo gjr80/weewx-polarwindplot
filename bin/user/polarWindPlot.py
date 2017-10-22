@@ -1381,25 +1381,16 @@ class PolarWindTrailPlot(PolarWindPlot):
                 # scale the vector to our polar plot area
                 x = self.origin_x + vec_x * scale
                 y = self.origin_y - (vec_y * scale)
-#### TODO next bit deciding colour is duplicated code, push to function
-                if self.marker_color == "speed" :
-                    # makes lines function of speed
-                    lookup = 5
-                    while lookup >= 0: # TODO Yuk, 7 colours is hard coded
-                        if this_speed_vec > self.speed_list[lookup] :
-                            markercolor = self.plot_colors[lookup + 1]
-                            break
-                        lookup -= 1
-                else:
-                    # constant colour
-                    markercolor = self.marker_color
+                # determine marker color to be used
+                marker_color = self.get_speed_color(self.marker_color,
+                                                    this_speed_vec)
                 # if this is the last point make it different colour if needed
                 if i == self.samples - 1:
                     if self.end_point_color:
-                        markercolor = self.end_point_color
+                        marker_color = self.end_point_color
                 # now draw the markers
                 _scale = 4 # TODO implement this as config option marker_size
-                self.renderMarker(x, y, _scale, self.marker_type, markercolor)
+                self.renderMarker(x, y, _scale, self.marker_type, marker_color)
 
         # now plot the lines
         lastx = self.origin_x
@@ -1432,28 +1423,17 @@ class PolarWindTrailPlot(PolarWindPlot):
             y = self.origin_y - (vec_y * scale)
             radius = math.sqrt(vec_x**2 + vec_y**2) * scale
             thisa = math.degrees(math.atan2(vec_y,vec_x))
-#### TODO next bit deciding colour is duplicated code, push to function
-            if self.line_color == "speed":
-                # makes lines function of speed
-                lookup = 5
-#### TODO Yuk, 7 colours is hard coded
-                while lookup >= 0:
-                    if self.speed_vec[0][i] > self.speed_list[lookup]:
-                        linecolor = self.plot_colors[lookup + 1]
-                        break
-                    lookup -= 1
-            else:
-                # constant colour
-                linecolor = self.line_color
+            # determine line color to be used
+            line_color = self.get_speed_color(self.line_color,
+                                              this_speed_vec)
             # draw the line, line style can be 'straight', 'radial' or no line
             if self.line_style == 'straight':
                 vector = (int(lastx), int(lasty), int(x), int(y))
-                self.draw.line(vector, fill=linecolor, width=1)
+                self.draw.line(vector, fill=line_color, width=1)
             elif self.line_style == "radial":
-                #self.joinCurve(lasta, lastr, lastx, lasty, thisa, linecolor)
+                #self.joinCurve(lasta, lastr, lastx, lasty, thisa, line_color)
                 self.joinCurve(lastx, lasty, lastr, lasta,
-                                           x, y, radius, thisa,
-                                           linecolor)
+                               x, y, radius, thisa, line_color)
             lastx = x
             lasty = y
             lasta = thisa
