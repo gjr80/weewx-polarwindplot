@@ -408,6 +408,8 @@ class PolarWindPlot(object):
         # on the stacked bar in the legend. 7 elements only (ie 0, 10% of max,
         # 20% of max...100% of max)
         self.speed_factors = [0.0, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0]
+        # setup a list with speed range boundaries
+        self.speed_list = []
 
     def add_data(self, speed_field, speed_vec, dir_vec, time_vec, samples, units):
         """Add source data to the plot.
@@ -439,18 +441,18 @@ class PolarWindPlot(object):
         # set the speed units label
         self.units = units
 
-#### Where should this 'function' reside, does not seem to sit well here as
-#### it is very wind rose specific
-        # setup a list with speed range boundaries
-        speed_list = [0 for x in range(7)]
-        # Loop though each speed range boundary and store in speed_list[0]
-        i = 1
-        while i < 7:
-            speed_list[i] = self.speed_factors[i] * self.max_speed_range
-            i += 1
-        # save speed_list
-        self.speed_list = speed_list
-####
+    def set_speed_list(self):
+        """Set a list of speed range values
+
+        Given the factors for each boundary point and a maximum speed value
+        calculate the boundary points as actual speeds. Used primarily in the
+        legend or wherever speeds are categorised by a speed range."""
+
+        self.speed_list = [0,0,0,0,0,0,0]
+        # loop though each speed range boundary
+        for i in range(7):
+            # calculate the actual boundary speed value
+            self.speed_list[i] = self.speed_factors[i] * self.max_speed_range
 
     def set_title(self, title):
         """Set the plot title.
@@ -559,8 +561,7 @@ class PolarWindPlot(object):
         # bulb diameter
         bulb_d = int(round(1.2 * self.legend_bar_width, 0))
         # draw stacked bar and label with values
-        i = 6
-        while i > 0:
+        for i in range (6, 0, -1):
             # draw the rectangle for the stacked bar
             x0 = org_x
             y0 = org_y - (0.85 * self.max_plot_dia * self.speed_factors[i])
@@ -589,8 +590,6 @@ class PolarWindPlot(object):
                            text,
                            fill=self.legend_font_color,
                            font=self.legend_font)
-            # do the next rectangle down
-            i -= 1
 
         # draw 'Calm' label and '0' speed label/percentage
         # position the 'Calm' label
@@ -608,7 +607,7 @@ class PolarWindPlot(object):
         x = org_x + 1.5 * self.legend_bar_width
         y = org_y - t_height / 2 - (0.85 * self.max_plot_dia * self.speed_factors[0])
         # get the basic label text
-        snippets = (str(self.speed_list[0]), )
+        snippets = (str(int(self.speed_list[0])), )
         # if required add a bracketed percentage
         if self.legend_percentage:
             snippets += (' (',
@@ -694,12 +693,11 @@ class PolarWindPlot(object):
         else :
             no_of_rings = 5
             centre_ring = 0.5
-        bbMinRad = self.max_plot_dia/(2.0*(no_of_rings + centre_ring))
+        bbMinRad = self.max_plot_dia/(2.0 * (no_of_rings + centre_ring))
         delta = centre_ring
         #d2 = 2 * centre_ring
         # locate/size then render each speed ring starting from the outside
-        i = no_of_rings # TODO Magic number 5 is related to the 10 and 11 above, changed here, pending testing
-        while i > 0: # TODO make for range loop ?
+        for i in range(no_of_rings, 0, -1):
             # create a bound box for the ring
             bbox = (self.origin_x - bbMinRad * (i + delta),
                     self.origin_y - bbMinRad * (i + delta),
@@ -709,8 +707,6 @@ class PolarWindPlot(object):
             self.draw.ellipse(bbox,
                               outline=self.image_back_range_ring_color,
                               fill=self.image_back_circle_color)
-            # next ring
-            i -= 1
 
         # render vertical centre line
         x0 = self.origin_x
@@ -764,12 +760,9 @@ class PolarWindPlot(object):
 
         # render labels on rings
         labels = list((None, None, None, None, None))   # list to hold ring labels
-        i = 1
-        while i < 6: # TODO make for range
+        for i in range (5):
             # get the label to be used for this ring
-            labels[i - 1] = self.get_ring_label(i)
-            # next ring
-            i += 1
+            labels[i] = self.get_ring_label(i + 1)
         # calculate location of ring labels
         # offset_x/y is the x/y offset for a label in half ring steps
         angle = 7 * math.pi / 4 + int(self.label_dir / 4.0) * math.pi / 2
@@ -785,8 +778,7 @@ class PolarWindPlot(object):
 
 #### TODO Spiral has this as 2 : NT COMMENT I THINK THIS IS AN OLD DEAD COMMENT THAT CAN BE REMOVED
         # Draw ring labels, 1 is inner and 5 is outer
-        i = 1
-        while i < 6: # TODO make for range
+        for i in range(1, 6):
             if labels[i-1] is not None:
                 width, height = self.draw.textsize(labels[i-1],
                                                    font=self.plot_font)
@@ -802,7 +794,6 @@ class PolarWindPlot(object):
                                labels[i - 1],
                                fill=self.plot_font_color,
                                font=self.plot_font)
-            i += 1
 
         # # draw outside ring label
         # if labels[i - 1] is not None:
@@ -1011,14 +1002,13 @@ class PolarWindPlot(object):
     def get_speed_color(self, source, speed):
         """Determine the speed based colour to be used."""
 
+        result = None
         if source == "speed" :
             # colour is a function of speed
-            lookup = 5
-            while lookup >= 0: # TODO Yuk, 7 colours is hard coded
-                if speed > self.speed_list[lookup] :
+            for lookup in range(5, -1, -1): # TODO Yuk, 7 colours is hard coded
+                if speed > self.speed_list[lookup]:
                     result = self.plot_colors[lookup + 1]
                     break
-                lookup -= 1
         else:
             # constant colour
             result = source
@@ -1056,13 +1046,8 @@ class PolarWindRosePlot(PolarWindPlot):
         self.set_legend(percentage=True)
         # setup the plot title
         self.set_title(title)
-#### This needs to be fixed, should not render until setup complete
-#        if self.title:
-#            width, height = self.draw.textsize(self.title, font=self.label_font)
-#            self.title_height = height
-#        else:
-#            self.title_height = 0
-
+        # set the speed list boundary values
+        self.set_speed_list()
         # set up the background polar grid
         self.set_polar_grid()
         self.set_plot()
@@ -1078,7 +1063,7 @@ class PolarWindRosePlot(PolarWindPlot):
         return image
 
     def set_plot(self):
-        """Setup the rose plot rnder."""
+        """Setup the rose plot render."""
 
         # Setup 2D list for wind direction. wind_bin[0] represents each of
         # 16 compass directions ([0] is N, [1] is ENE etc). wind_bin[1] holds
@@ -1090,8 +1075,7 @@ class PolarWindRosePlot(PolarWindPlot):
         # ranges for each direction as necessary. 'None' direction is counted
         # as 'calm' (or 0 speed) and (by definition) no direction and are
         # plotted in the 'bullseye' on the plot.
-        i = 0
-        while i < self.samples:
+        for i in range(self.samples):
             this_speed_vec = self.speed_vec[0][i]
             this_dir_vec = self.dir_vec[0][i]
             if (this_speed_vec is None) or (this_dir_vec is None):
@@ -1112,7 +1096,6 @@ class PolarWindRosePlot(PolarWindPlot):
                     wind_bin[bin][1] += 1
                 else:
                     wind_bin[bin][0] += 1
-            i += 1
         # add 'None' obs to 0 speed count
         speed_bin[0] += wind_bin[16][6]
         # don't need the 'None' counts so we can delete them
@@ -1120,13 +1103,9 @@ class PolarWindRosePlot(PolarWindPlot):
         # Now set total (direction independent) speed counts. Loop through
         # each petal speed range and increment direction independent speed
         # ranges as necessary.
-        j = 0
-        while j < 7:
-            i = 0
-            while i < 16:
+        for j in range(7):
+            for i in range(16):
                 speed_bin[j] += wind_bin[i][j]
-                i += 1
-            j += 1
         # Calc the value to represented by outer ring (range 0 to 1). Value to
         # rounded up to next multiple of 0.05 (ie next 5%)
         self.maxRingValue = (int(max(sum(b) for b in wind_bin)/(0.05 * self.samples)) + 1) * 0.05
@@ -1176,14 +1155,12 @@ class PolarWindRosePlot(PolarWindPlot):
         # Plot wind rose petals. Each petal is constructed from overlapping
         # pie slices starting from outside (biggest) and working in (smallest)
         # start at 'North' windrose petal
-        a = 0
         # loop through each wind rose arm
-        while a < len(self.wind_bin):
-            s = len(self.speed_list) - 1
+        for a in range(len(self.wind_bin)):
             cumRadius = sum(self.wind_bin[a])
             if cumRadius > 0:
                 armRadius = int((10 * self.max_plot_dia * sum(self.wind_bin[a])) / (11 * 2.0 * self.maxRingValue * self.samples))
-                while s > 0:
+                for s in range(len(self.speed_list) - 1):
                     # calc radius of current arm
                     pieRadius = int(round(armRadius * cumRadius/sum(self.wind_bin[a]) + self.max_plot_dia / 22,0))
                     # set bound box for pie slice
@@ -1197,10 +1174,6 @@ class PolarWindRosePlot(PolarWindPlot):
                                        int(a * 22.5 - 90 + self.petal_width / 2),
                                        fill=self.plot_colors[s], outline='black')
                     cumRadius -= self.wind_bin[a][s]
-                    # move 'in' for next pieslice
-                    s -= 1
-            # next arm
-            a += 1
         # draw 'bullseye' to represent windSpeed=0 or calm
         # produce the label
         label0 = str(int(round(100.0 * self.speed_bin[0] / sum(self.speed_bin), 0))) + '%'
@@ -1310,13 +1283,8 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.set_legend()
         # setup the plot title
         self.set_title(title)
-#### This needs to be fixed, should not render until setup complete
-#        if self.title:
-#            width, height = self.draw.textsize(self.title, font=self.label_font)
-#            self.title_height = height
-#        else:
-#            self.title_height = 0
-
+        # set the speed list boundary values
+        self.set_speed_list()
         # set up the background polar grid
         self.set_polar_grid()
         self.set_plot()
@@ -1564,13 +1532,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.set_legend()
         # setup the plot title
         self.set_title(title)
-#### This needs to be fixed, should not render until setup complete
-#        if self.title:
-#            width, height = self.draw.textsize(self.title, font=self.label_font)
-#            self.title_height = height
-#        else:
-#            self.title_height = 0
-
+        # set the speed list boundary values
+        self.set_speed_list()
         # set up the background polar grid
         self.set_polar_grid()
         # setup the spiral plot
