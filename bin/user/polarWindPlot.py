@@ -1422,7 +1422,7 @@ class PolarWindTrailPlot(PolarWindPlot):
             x = self.origin_x + vec_x * scale
             y = self.origin_y - (vec_y * scale)
             radius = math.sqrt(vec_x**2 + vec_y**2) * scale
-            thisa = math.degrees(math.atan2(vec_y,vec_x))
+            thisa = math.degrees(math.atan2(-vec_y,vec_x)) + 90.0
             # determine line color to be used
             line_color = self.get_speed_color(self.line_color,
                                               this_speed_vec)
