@@ -913,11 +913,11 @@ class PolarWindPlot(object):
             start_x: start point plot x coordinate
             start_y: start point plot y coordinate
             start_r: start point vector radius (in pixels)
-            start_a: start point vector direction
+            start_a: start point vector direction (degrees True)
             end_x:   end point plot x coordinate
             end_y:   end point plot y coordinate
             end_r:   end point vector radius (in pixels)
-            end_a:   end point vector direction
+            end_a:   end point vector direction (degrees True)
             color:   color to be used
         """
 
@@ -936,7 +936,8 @@ class PolarWindPlot(object):
         last_x = start_x
         last_y = start_y
         a = 1
-        # while statement to allow us to draw in 1 degree increments
+        # while statement to allow us to draw curve in 1 degree increments
+        # if angle to cover is < 2 degrees we draw NO segments
         while a < angle_span:
             # calculate the radius of the vector of next point we will draw to
             radius = start_r + (end_r - start_r) * a / angle_span
@@ -953,11 +954,10 @@ class PolarWindPlot(object):
             last_y = y
             # increment the angle
             a += 1
-        # once we have finished we need to draw the last incremental point to
-        # our orignal end point
-        # define the line to be drawn
+        # once we have finished the curve {if any was plotted at all) we need to draw the last 
+        # incremental point to our orignal end point. In instances when the angle_span is < 2 degrees
+        # this will be the only segment drawn
         xy = (last_x, last_y, end_x, end_y)
-        # draw the line
         self.draw.line(xy, fill=color, width=1)
 
     def get_legend_title(self, source=None):
