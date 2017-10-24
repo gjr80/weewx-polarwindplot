@@ -1224,6 +1224,8 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.legend = tobool(self.plot_dict.get('legend', True))
         # get marker_type, default to 'circle'
         self.marker_type = self.plot_dict.get('marker_type', 'circle')
+        # get marker_size, default to '1'
+        self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # get line_style, default to radial
         self.line_style = self.plot_dict.get('line_style', 'none')
 
@@ -1379,8 +1381,7 @@ class PolarWindTrailPlot(PolarWindPlot):
                     if self.end_point_color:
                         marker_color = self.end_point_color
                 # now draw the markers
-                _scale = 4 # TODO implement this as config option marker_size
-                self.renderMarker(x, y, _scale, self.marker_type, marker_color)
+                self.renderMarker(x, y, self.marker_size, self.marker_type, marker_color)
 
         # now plot the lines
         lastx = self.origin_x
@@ -1475,6 +1476,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
 
         # get marker_type, default to 'circle'
         self.marker_type = self.plot_dict.get('marker_type', 'circle')
+        # get marker_size, default to '1'
+        self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # get line_style, default to radial
         self.line_style = self.plot_dict.get('line_style', 'radial')
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
@@ -1659,8 +1662,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     marker_color = self.get_speed_color(self.line_color,
                                                         this_speed_vec)
                     # now draw the markers
-                    _scale = 4 # TODO implement this as config option marker_size
-                    self.renderMarker(self.x, self.y, _scale, self.marker_type, marker_color)
+                    self.renderMarker(self.x, self.y, self.marker_size, self.marker_type, marker_color)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
@@ -1738,6 +1740,8 @@ class PolarWindScatterPlot(PolarWindPlot):
         if self.marker_type == 'none':
             self.marker_type = None
 
+        # get marker_size, default to '1'
+        self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # Get line style, can be 'straight', 'spoke', 'radial' or 'none'. Default to 'straight'
         _style = self.plot_dict.get('line_style', 'straight')
         # we have a line style but is it one we know about
@@ -1903,8 +1907,7 @@ class PolarWindScatterPlot(PolarWindPlot):
                     else :
                         marker_color = self.line_color
                     # now draw the markers
-                    _scale = 4 # TODO implement this as config option marker_size
-                    self.renderMarker(x, y, _scale, self.marker_type, marker_color)
+                    self.renderMarker(x, y, self.marker_size, self.marker_type, marker_color)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
