@@ -1338,14 +1338,14 @@ class PolarWindTrailPlot(PolarWindPlot):
         # What quadrant is the final cumulative vector in
         if vec_x >= 0 :
             if vec_y >= 0 :
-                _final_vector_dir  = 6 # SE
-            else :
                 _final_vector_dir  = 2 # NE
+            else :
+                _final_vector_dir  = 6 # SE
         else :
             if vec_y >= 0 :
-                _final_vector_dir  = 10 # SW
-            else :
                 _final_vector_dir  = 14 # NW
+            else :
+                _final_vector_dir  = 10 # SW
         for i in [6, 10, 2, 14]:
             if i !=_final_vector_dir:
                 self.label_dir = i
