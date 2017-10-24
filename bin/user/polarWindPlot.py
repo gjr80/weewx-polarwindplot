@@ -1546,9 +1546,12 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # calculate which samples will fall on the circular axis marks and
         # extract their timestamps
         _label = []
-        for n in range(6):
+        for n in range(6): # TODO 6 is a magic number for # of rings
             # sample number
-            sample = int(round((self.samples - 1) * n/5))
+            if self.centre == "newest" :
+                sample = int(round((self.samples - 1) * (5-n)/5)) # TODO 5 is magic number for # of rings
+            else:
+                sample = int(round((self.samples - 1) * n/5))
             # get the sample ts as a datetime object
             _dt = datetime.datetime.fromtimestamp(self.time_vec[0][sample])
             # format the and save to our list of labels
@@ -1695,7 +1698,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # center
         if self.centre == "newest" :
             # newest in the center
-            _label_text = "Newest in Center"
+            _label_text = "Newest in Center "  + self.time_labels[0]
         else :
             # oldest in the center, include the date of the oldest
             _label_text = "Oldest in Center " + self.time_labels[0]
