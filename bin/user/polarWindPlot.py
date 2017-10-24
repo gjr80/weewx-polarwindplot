@@ -1329,8 +1329,28 @@ class PolarWindTrailPlot(PolarWindPlot):
             if vec_radius > self.max_vector_radius:
                 self.max_vector_radius = vec_radius
 
-        # set the location of the ring labels, in this case SE
-        self.label_dir = 6
+        # Find which wind rose arm to use to display ring range labels - look
+        # for one that is relatively clear. Only consider NE, SE, SW and NW;
+        # preference in order is SE, SW, NE and NW. label_dir stored as an
+        # integer corresponding to the windrose arms, 2=NE, 6=SE, 10=SW, 14=NW.
+        # iterate over the possible directions
+        #
+        # What quadrant is the final cumulative vector in
+        if vec_x >= 0 :
+            if vec_y >= 0 :
+                _final_vector_dir  = 6 # SE
+            else :
+                _final_vector_dir  = 2 # NE
+        else :
+            if vec_y >= 0 :
+                _final_vector_dir  = 10 # SW
+            else :
+                _final_vector_dir  = 14 # NW
+        for i in [6, 10, 2, 14]:
+            if i !=_final_vector_dir:
+                self.label_dir = i
+                break
+        
         # determine the 'unit' label to use on ring labels
         self.ring_units = DISTANCE_LOOKUP[self.speed_vec[1]]
 
@@ -1552,7 +1572,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.time_labels = _label
 
         # set the location of the ring labels, in this case SE
-        self.label_dir = 6
+        self.label_dir = 6 # TODO make sensible choice
 
     def render_plot(self):
         """Render the spiral plot data."""
@@ -1822,7 +1842,7 @@ class PolarWindScatterPlot(PolarWindPlot):
         """
 
         # set the location of the ring labels, in this case SE
-        self.label_dir = 6
+        self.label_dir = 6 # TODO make sensible choice
         # determine the 'unit' label to use on ring labels
         self.ring_units = SPEED_LOOKUP[self.speed_vec[1]]
 
