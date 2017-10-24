@@ -55,7 +55,9 @@ from weewx.units import Converter
 POLAR_WIND_PLOT_VERSION = '0.1.0'
 
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
-                        'limegreen', 'green', 'greenyellow']
+                       'limegreen', 'green', 'greenyellow']
+                       
+DEFAULT_NO_RINGS = 5
 
 DISTANCE_LOOKUP = {'km_per_hour': 'km',
                    'mile_per_hour': 'mile',
@@ -404,6 +406,9 @@ class PolarWindPlot(object):
         self.east = compass[2]
         self.west = compass[3]
 
+        # number of rings on the polar plot
+        self.rings = int(self.plot_dict.get('polar_rings', DEFAULT_NO_RINGS))
+        
         # Boundaries for speed range bands, these mark the colour boundaries
         # on the stacked bar in the legend. 7 elements only (ie 0, 10% of max,
         # 20% of max...100% of max)
@@ -653,60 +658,73 @@ class PolarWindPlot(object):
                        fill=self.legend_font_color,
                        font=self.legend_font)
 
-    def render_polar_grid(self, plot_type):
+    def render_polar_grid(self, bullseye=0):
         """Render polar plot grid.
 
-        Render the axes, speed circles and labels.
+        Render the polar grid on which the plot will be displayed. This 
+        includes the axes, axes labels, rings and ring labels.
+        
+        Inputs:
+            bullseye: radius of the bullseye to be displayed on the polar grid 
+                      as a proportion of the polar grid radius
         """
 
-        # speed circles
-
-        # set some parameters that define the location/size of the speed rings
-#        if self.plot_type == "scatter" or self.plot_type == "spiral" or self.plot_type == "trail" :
-#            bbMinRad = self.max_plot_dia/10.0 # Calc distance between windrose
-#                                           # range rings.
-#            delta = 0
-#            d2 = 0
-#        else :
-#            # a Windrose
-#            bbMinRad = self.max_plot_dia/11 # Calc distance between windrose
-#                                           # range rings. Note that 'calm'
-#                                           # bulleye is at centre of plot
-#                                           # with diameter equal to bbMinRad
-#                                           # TODO may need 11.0 here also, I needed to make 10.0 for #spiral/scatter to avoid integer rounding problems
-#            delta = 0.5
-#            d2 = 1
-        # Calc distance between windrose range rings. Note that 'calm' bulleye
-        # is at centre of plot with diameter equal to bbMinRad.
-        #
-        # TODO Suggested improvement .... too many magic numbers in here
-        # in essence they are
-        # no_of_rings, which is 5 in all our cases
-        # centre_ring (0.5 for rose, 0 otherwise)
-        #
-        # bbMinRad = self.max_plot_dia/2.0*(no_of_rings + centre_ring)
-        # delta = centre_ring
-        # d2 = 2* delta (do we even need to define it or is it somethign else that happens to be 2*delta)
-        if plot_type == "scatter" or plot_type == "spiral" or plot_type == "trail" :
-            no_of_rings = 5
-            centre_ring = 0
-        else :
-            no_of_rings = 5
-            centre_ring = 0.5
-        bbMinRad = self.max_plot_dia/(2.0 * (no_of_rings + centre_ring))
-        delta = centre_ring
-        #d2 = 2 * centre_ring
-        # locate/size then render each speed ring starting from the outside
-        for i in range(no_of_rings, 0, -1):
+        # render the rings
+        
+        # calculate the space in pixels between each ring
+        ring_space = (1 - bullseye) * self.max_plot_dia/(2.0 * self.rings)
+        # calculate the radius of the bullseye in pixels
+        bullseye_radius = bullseye * self.max_plot_dia / 2.0
+        # locate/size then render each ring starting from the outside
+        for i in range(self.rings, 0, -1):
             # create a bound box for the ring
-            bbox = (self.origin_x - bbMinRad * (i + delta),
-                    self.origin_y - bbMinRad * (i + delta),
-                    self.origin_x + bbMinRad * (i + delta),
-                    self.origin_y + bbMinRad * (i + delta))
+            bbox = (self.origin_x - ring_space * i - bullseye_radius,
+                    self.origin_y - ring_space * i - bullseye_radius,
+                    self.origin_x + ring_space * i + bullseye_radius,
+                    self.origin_y + ring_space * i + bullseye_radius)
             # render the ring
             self.draw.ellipse(bbox,
                               outline=self.image_back_range_ring_color,
                               fill=self.image_back_circle_color)
+
+        # render the ring labels
+        
+        # first, initialise a list to hold the labels
+        labels = list((None for x in range(self.rings)))
+        # loop over the rings getting the label for each ring
+        for i in range (self.rings):
+            labels[i] = self.get_ring_label(i + 1)
+        # calculate location of ring labels, first we need the angle to use
+        angle = 7 * math.pi / 4 + int(self.label_dir / 4.0) * math.pi / 2
+        # Now draw ring labels. For clarity each label (except for outside 
+        # label) is drawn on a rectangle with background colour set to that of 
+        # the polar plot background.
+        # iterate over each of the rings
+        for i in range(self.rings):
+            # we only need do anything if we have a label for this ring
+            if labels[i] is not None:
+                # calculate the width and heihgt of the label text
+                width, height = self.draw.textsize(labels[i],
+                                                   font=self.plot_font)
+                # find the distance of the midpoint of the text box from the 
+                # plot origin
+                radius = bullseye_radius + (i + 1) * ring_space
+                # calculate x and y coords (top left corner) for the text
+                x0 = self.origin_x + int(radius * math.cos(angle) - width / 2.0)
+                y0 = self.origin_y + int(radius * math.sin(angle) - height / 2.0)
+                # the inner most labels have a background box painted first
+                if i < self.rings - 1:
+                    # calculate the bottom right corner of the background box
+                    x1 = self.origin_x + int(radius * math.cos(angle) + width / 2.0)
+                    y1 = self.origin_y + int(radius * math.sin(angle) + height / 2.0)
+                    # draw the background box
+                    self.draw.rectangle([(x0, y0), (x1, y1)],
+                                        fill=self.image_back_circle_color)
+                # now draw the label text
+                self.draw.text((x0, y0),
+                               labels[i],
+                               fill=self.plot_font_color,
+                               font=self.plot_font)
 
         # render vertical centre line
         x0 = self.origin_x
@@ -757,53 +775,6 @@ class PolarWindPlot(object):
                        self.east,
                        fill=self.plot_font_color,
                        font=self.plot_font)
-
-        # render labels on rings
-        labels = list((None, None, None, None, None))   # list to hold ring labels
-        for i in range (5):
-            # get the label to be used for this ring
-            labels[i] = self.get_ring_label(i + 1)
-        # calculate location of ring labels
-        # offset_x/y is the x/y offset for a label in half ring steps
-        angle = 7 * math.pi / 4 + int(self.label_dir / 4.0) * math.pi / 2
-        #if plot_type == "scatter" or plot_type == "spiral" or plot_type == "trail":
-        offset_x = int(round(self.max_plot_dia / (4 * (no_of_rings + centre_ring)) * math.cos(angle), 0))
-        offset_y = int(round(self.max_plot_dia / (4 * (no_of_rings + centre_ring)) * math.sin(angle), 0))
-        #else:
-        #    offset_x = int(round(self.max_plot_dia / 22 * math.cos(angle), 0))
-        #    offset_y = int(round(self.max_plot_dia / 22 * math.sin(angle), 0))
-        # Draw ring labels. Note leave inner ring blank due to lack of space.
-        # For clarity each label (except for outside ring) is drawn on a
-        # rectangle with background colour set to that of the circular plot.
-
-#### TODO Spiral has this as 2 : NT COMMENT I THINK THIS IS AN OLD DEAD COMMENT THAT CAN BE REMOVED
-        # Draw ring labels, 1 is inner and 5 is outer
-        for i in range(1, 6):
-            if labels[i-1] is not None:
-                width, height = self.draw.textsize(labels[i-1],
-                                                   font=self.plot_font)
-                x0 = self.origin_x + (2 * (i + centre_ring)) * offset_x - width / 2
-                y0 = self.origin_y + (2 * (i + centre_ring)) * offset_y - height / 2
-                if i < 5:
-                    # The inner most labels have a white box painted first
-                    x1 = self.origin_x + (2 * (i + centre_ring)) * offset_x + width / 2
-                    y1 = self.origin_y + (2 * (i + centre_ring)) * offset_y + height / 2
-                    self.draw.rectangle([(x0, y0), (x1, y1)],
-                                        fill=self.image_back_circle_color)
-                self.draw.text((x0, y0),
-                               labels[i - 1],
-                               fill=self.plot_font_color,
-                               font=self.plot_font)
-
-        # # draw outside ring label
-        # if labels[i - 1] is not None:
-            # width, height = self.draw.textsize(labels[i-1], font=self.plot_font)
-            # x0 = self.origin_x + (2 * i + d2) * offset_x - width / 2
-            # y0 = self.origin_y + (2 * i + d2) * offset_y - height / 2
-            # self.draw.text((x0, y0),
-                           # labels[i - 1],
-                           # fill=self.plot_font_color,
-                           # font=self.plot_font)
 
     def render_title(self):
         """Render polar plot title."""
@@ -1032,6 +1003,8 @@ class PolarWindRosePlot(PolarWindPlot):
         self.legend = tobool(self.plot_dict.get('legend', True))
         # get petal width, if not defined then set default to 16
         self.petal_width = int(self.plot_dict.get('windrose_plot_petal_width', 16))
+        # bullseye radius as a proprotion of the plot area radius
+        self.bullseye = 0.1
 
     def render(self, title):
         """Main entry point to generate a polar wind rose plot."""
@@ -1055,7 +1028,7 @@ class PolarWindRosePlot(PolarWindPlot):
         self.render_title()
         self.render_legend()
 
-        self.render_polar_grid("rose")
+        self.render_polar_grid(self.bullseye)
         # finally render the plot
         self.render_plot()
         self.render_timestamp()
@@ -1152,38 +1125,52 @@ class PolarWindRosePlot(PolarWindPlot):
     def render_plot(self):
         """Render the rose plot data."""
 
+        # calculate the bullseye radius in pixels
+        b_radius = self.bullseye * self.max_plot_dia / 2.0
+        # calculate the space left in which to plot the rose 'petals'
+        petal_space = self.max_plot_dia / 2.0 - b_radius
+        
         # Plot wind rose petals. Each petal is constructed from overlapping
         # pie slices starting from outside (biggest) and working in (smallest)
         # start at 'North' windrose petal
+        
         # loop through each wind rose arm
         for a in range(len(self.wind_bin)):
-            cumRadius = sum(self.wind_bin[a])
-            if cumRadius > 0:
-                armRadius = int((10 * self.max_plot_dia * sum(self.wind_bin[a])) / (11 * 2.0 * self.maxRingValue * self.samples))
-                for s in range(len(self.speed_list) - 1):
-                    # calc radius of current arm
-                    pieRadius = int(round(armRadius * cumRadius/sum(self.wind_bin[a]) + self.max_plot_dia / 22,0))
+            # calculate the sum of all samples for this arm
+            arm_sum = sum(self.wind_bin[a])
+            # we only need to do something if we have data to plot
+            if arm_sum > 0:
+                # loop through each of the bins that make up this arm, start at 
+                # the outermost (highest) and work our way in
+                for s in range(len(self.speed_list) - 1, 0, -1):
+                    # calc radius in pixels of the pie slice that represents 
+                    # the current bin
+                    proportion = arm_sum / (self.maxRingValue * self.samples)
+                    radius = int(b_radius + proportion * petal_space)
                     # set bound box for pie slice
-                    bbox = (self.origin_x-pieRadius,
-                            self.origin_y-pieRadius,
-                            self.origin_x+pieRadius,
-                            self.origin_y+pieRadius)
+                    bbox = (self.origin_x - radius,
+                            self.origin_y - radius,
+                            self.origin_x + radius,
+                            self.origin_y + radius)
                     # draw pie slice
                     self.draw.pieslice(bbox,
                                        int(a * 22.5 - 90 - self.petal_width / 2),
                                        int(a * 22.5 - 90 + self.petal_width / 2),
                                        fill=self.plot_colors[s], outline='black')
-                    cumRadius -= self.wind_bin[a][s]
+                    # finished with this bin, so reduce our arm sum by the bin 
+                    # we just plotted
+                    arm_sum -= self.wind_bin[a][s]
+        
         # draw 'bullseye' to represent windSpeed=0 or calm
         # produce the label
         label0 = str(int(round(100.0 * self.speed_bin[0] / sum(self.speed_bin), 0))) + '%'
         # work out its size, particularly its width
         textWidth, textHeight = self.draw.textsize(label0, font=self.plot_font)
         # size the bound box
-        bbox = (int(self.origin_x - self.max_plot_dia / 22),
-                int(self.origin_y - self.max_plot_dia / 22),
-                int(self.origin_x + self.max_plot_dia / 22),
-                int(self.origin_y + self.max_plot_dia / 22))
+        bbox = (int(self.origin_x - b_radius),
+                int(self.origin_y - b_radius),
+                int(self.origin_x + b_radius),
+                int(self.origin_y + b_radius))
         # draw the circle
         self.draw.ellipse(bbox,
                           outline='black',
@@ -1211,9 +1198,12 @@ class PolarWindRosePlot(PolarWindPlot):
             label text for the given ring number
         """
 
-        label_inc = self.max_ring_value / 5
-        return ''.join([str(int(round(label_inc * ring * 100, 0))),
-                        self.ring_units])
+        if ring > 1:
+            label_inc = self.max_ring_value / self.rings
+            return ''.join([str(int(round(label_inc * ring * 100, 0))),
+                            self.ring_units])
+        else:
+            return None
 
 
 #=============================================================================
@@ -1292,7 +1282,7 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.render_title()
         self.render_legend()
 
-        self.render_polar_grid("trail")
+        self.render_polar_grid()
         # finally render the plot
         self.render_plot()
         self.render_timestamp()
@@ -1460,7 +1450,7 @@ class PolarWindTrailPlot(PolarWindPlot):
             label text for the given ring number
         """
 
-        label_inc = self.max_vector_radius / 5
+        label_inc = self.max_vector_radius / self.rings
         return ''.join([str(int(round(label_inc * ring, 0))), self.ring_units])
 
 
@@ -1525,7 +1515,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.render_legend()
 
         # render the polar grid
-        self.render_polar_grid("spiral")
+        self.render_polar_grid()
         # render the timestamp label
         self.render_timestamp()
         # render the spial direction label
@@ -1812,7 +1802,7 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.render_title()
 
         # render the polar grid
-        self.render_polar_grid("scatter")
+        self.render_polar_grid()
         # render the timestamp label
         self.render_timestamp()
         # finally render the plot
@@ -1933,7 +1923,7 @@ class PolarWindScatterPlot(PolarWindPlot):
             label text for the given ring number
         """
 
-        label_inc = self.max_speed_range / 5
+        label_inc = self.max_speed_range / self.rings
         return ''.join([str(int(round(label_inc * ring, 0))), self.ring_units])
 
 
