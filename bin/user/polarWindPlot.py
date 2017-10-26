@@ -1417,7 +1417,7 @@ class PolarWindTrailPlot(PolarWindPlot):
         if self.dir_vec[0][0] is None:
             lasta = 0
         else :
-            lasta = int(self.dir_vec[0][0])
+            lasta = int((self.dir_vec[0][0] +180) % 360)
         lastr = 0
         # iterate over the samples, ignore the first since we don't know what
         # period (delta) it applies to
