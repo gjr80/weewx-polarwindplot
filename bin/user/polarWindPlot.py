@@ -903,7 +903,7 @@ class PolarWindPlot(object):
                 self.draw.ellipse(bbox, outline=marker_color)
         return None
 
-    def joinCurve(self, start_x, start_y, start_r, start_a, end_x, end_y, end_r, end_a, color):
+    def joinCurve(self, start_x, start_y, start_r, start_a, end_x, end_y, end_r, end_a, color, line_width):
         """Join two points with a curve.
 
         Draw a smooth curve between two points by joing them with straight line
@@ -919,6 +919,7 @@ class PolarWindPlot(object):
             end_r:   end point vector radius (in pixels)
             end_a:   end point vector direction (degrees True)
             color:   color to be used
+            line_width : line width (pixels)
         """
 
         # calculate the angle in degrees between the start and end vectors and
@@ -948,7 +949,7 @@ class PolarWindPlot(object):
             # point to the last
             xy = (last_x, last_y, x, y)
             # draw a straight line
-            self.draw.line(xy, fill=color, width=1)
+            self.draw.line(xy, fill=color, width=line_width)
             # save our current point as the last point
             last_x = x
             last_y = y
@@ -958,7 +959,7 @@ class PolarWindPlot(object):
         # incremental point to our orignal end point. In instances when the angle_span is < 2 degrees
         # this will be the only segment drawn
         xy = (last_x, last_y, end_x, end_y)
-        self.draw.line(xy, fill=color, width=1)
+        self.draw.line(xy, fill=color, width=line_width)
 
     def get_legend_title(self, source=None):
         """Produce a title for the legend."""
@@ -1228,6 +1229,8 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # get line_style, default to radial
         self.line_style = self.plot_dict.get('line_style', 'radial')
+        # get line_width, default to 1
+        self.line_width = int(self.plot_dict.get('line_width', 1))
 
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
         # 'speed'.
@@ -1411,15 +1414,17 @@ class PolarWindTrailPlot(PolarWindPlot):
         # For the first sample the previous point must be set to the origin
         lastx = self.origin_x
         lasty = self.origin_y
-        lasta = 0
+        if self.dir_vec[0][0] is None:
+            lasta = 0
+        else :
+            lasta = int(self.dir_vec[0][0])
         lastr = 0
         # iterate over the samples, ignore the first since we don't know what
         # period (delta) it applies to
         for i in range(1, self.samples):
             this_dir_vec = self.dir_vec[0][i]
             this_speed_vec = self.speed_vec[0][i]
-            # ignore any speeds that are 0 or None and any directions that
-            # are None
+            # ignore any speeds that are 0 or None and any directions that are None
             if this_speed_vec is None or this_dir_vec is None or this_speed_vec == 0.0:
                 continue
             # the period in sec the current speed applies to
@@ -1440,11 +1445,11 @@ class PolarWindTrailPlot(PolarWindPlot):
             # draw the line, line style can be 'straight', 'radial' or no line
             if self.line_style == 'straight':
                 vector = (int(lastx), int(lasty), int(x), int(y))
-                self.draw.line(vector, fill=line_color, width=1)
+                self.draw.line(vector, fill=line_color, width=self.line_width)
             elif self.line_style == "radial":
                 #self.joinCurve(lasta, lastr, lastx, lasty, thisa, line_color)
                 self.joinCurve(lastx, lasty, lastr, lasta,
-                               x, y, radius, thisa, line_color)
+                               x, y, radius, thisa, line_color, self.line_width)
             lastx = x
             lasty = y
             lasta = thisa
@@ -1452,7 +1457,7 @@ class PolarWindTrailPlot(PolarWindPlot):
         # Thats the last samlple done ,Now we draw final vector, if required
         # if self.vector_color != "none" :
         vector = (int(self.origin_x), int(self.origin_y), int(x), int(y))
-        self.draw.line(vector, fill='red', width=1)
+        self.draw.line(vector, fill='red', width=self.line_width)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
@@ -1500,6 +1505,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # get line_style, default to radial
         self.line_style = self.plot_dict.get('line_style', 'radial')
+        # get line_width, default to 1
+        self.line_width = int(self.plot_dict.get('line_width', 1))
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
         # 'speed'.
         self.line_color = self.plot_dict.get('line_color', 'speed')
@@ -1631,12 +1638,12 @@ class PolarWindSpiralPlot(PolarWindPlot):
                 # line
                 if self.line_style == "straight" :
                     vector = (int(lastx), int(lasty), int(self.x), int(self.y))
-                    self.draw.line(vector, fill=line_color, width=1)
+                    self.draw.line(vector, fill=line_color, width=self.line_width)
                 elif self.line_style == "radial" :
                     #self.joinCurve(lasta, lastr, lastx, lasty, thisa, line_color)
                     self.joinCurve(lastx, lasty, lastr, lasta,
                                            self.x, self.y, self.radius, thisa,
-                                           line_color)
+                                           line_color, self.line_width)
                 # this sample is complete, save it as the 'last' sample
                 lastx = self.x
                 lasty = self.y
@@ -1773,7 +1780,8 @@ class PolarWindScatterPlot(PolarWindPlot):
         else:
             # we have a valid line style so save it
             self.line_style = _style
-
+        # get line_width, default to 1
+        self.line_width = int(self.plot_dict.get('line_width', 1))
         # Get line_color, can be 'age' or a valid color. Default to 'age'.
         _line_color = self.plot_dict.get('line_color', 'age')
         # we have a line color but is it valid or a style we know about
@@ -1890,14 +1898,14 @@ class PolarWindScatterPlot(PolarWindPlot):
                         # 'radial' or no line
                         if self.line_style == "straight":
                             xy = (lastx, lasty, x, y)
-                            self.draw.line(xy, fill=line_color, width=1)
+                            self.draw.line(xy, fill=line_color, width=self.line_width)
                         elif self.line_style == "spoke":
                             spoke = (self.origin_x, self.origin_y, x, y)
-                            self.draw.line(spoke, fill=line_color, width=1)
+                            self.draw.line(spoke, fill=line_color, width=self.line_width)
                         elif self.line_style == "radial": # TODO last one should be default else
                             self.joinCurve(lastx, lasty, lastr, lasta,
                                            x, y, radius, this_dir_vec,
-                                           line_color)
+                                           line_color, self.line_width)
                     # this sample is complete, save the plot values as the
                     # 'last' sample
                     lastx = x
