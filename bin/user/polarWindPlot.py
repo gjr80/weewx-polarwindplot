@@ -1002,7 +1002,7 @@ class PolarWindRosePlot(PolarWindPlot):
         # do we display a legend, default to True
         self.legend = tobool(self.plot_dict.get('legend', True))
         # get petal width, if not defined then set default to 16
-        self.petal_width = int(self.plot_dict.get('windrose_plot_petal_width', 16))
+        self.petal_width = int(self.plot_dict.get('petal_width', 16))
         # bullseye radius as a proprotion of the plot area radius
         self.bullseye = 0.1
 
