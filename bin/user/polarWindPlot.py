@@ -803,13 +803,13 @@ class PolarWindPlot(object):
             _dt = datetime.datetime.fromtimestamp(self.timestamp)
             text = _dt.strftime(self.timestamp_format)
             width, height = self.draw.textsize(text, font=self.label_font)
-            if 'TOP' in self.timestamp_location:
+            if 'top' in self.timestamp_location:
                 y = self.plot_border + height
             else:
                 y = self.image_height - self.plot_border - height
-            if 'LEFT' in self.timestamp_location:
+            if 'left' in self.timestamp_location:
                 x = self.plot_border
-            elif ('CENTER' in self.timestamp_location) or ('CENTRE' in self.timestamp_location):
+            elif ('center' in self.timestamp_location) or ('centre' in self.timestamp_location):
                 x = self.origin_x - width / 2
             else:
                 x = self.image_width - self.plot_border - width
@@ -1719,13 +1719,13 @@ class PolarWindSpiralPlot(PolarWindPlot):
 #### Does this conflict with the location of the timestamp?
         # now locate the label
         if self.timestamp_location is not None:
-            if 'TOP' in self.timestamp_location:
+            if 'top' in self.timestamp_location:
                 y = self.plot_border + height
             else:
                 y = self.image_height-self.plot_border - height
-            if 'LEFT' in self.timestamp_location:
+            if 'left' in self.timestamp_location:
                 x = self.image_width - self.plot_border - width
-            elif ('CENTER' in self.timestamp_location) or ('CENTRE' in self.timestamp_location):
+            elif ('center' in self.timestamp_location) or ('centre' in self.timestamp_location):
                 x = self.origin_x - width / 2
                 # TODO CANT DO THIS ONE
             else:
