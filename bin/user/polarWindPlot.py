@@ -1227,7 +1227,7 @@ class PolarWindTrailPlot(PolarWindPlot):
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # get line_style, default to radial
-        self.line_style = self.plot_dict.get('line_style', 'none')
+        self.line_style = self.plot_dict.get('line_style', 'radial')
 
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
         # 'speed'.
@@ -1763,13 +1763,13 @@ class PolarWindScatterPlot(PolarWindPlot):
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # Get line style, can be 'straight', 'spoke', 'radial' or 'none'. Default to 'straight'
-        _style = self.plot_dict.get('line_style', 'straight')
+        _style = self.plot_dict.get('line_style', 'radial')
         # we have a line style but is it one we know about
-        if _style is not None and _style.lower() not in ['straight', 'spoke', 'radial', 'none']:
+        if _style is not None and _style.lower() not in ['straight', 'spoke', 'radial', 'none', '']:
             # it's a line style I don't understand, set line_style to
-            # 'straight' so that something is displayed then log it
-            self.line_style = 'straight'
-            logdbg("Unknown scatter plot line style '%s', using 'straight' instead" % (_style, ))
+            # 'radial' so that something is displayed then log it
+            self.line_style = 'radial'
+            logdbg("Unknown scatter plot line style '%s', using 'radial' instead" % (_style, ))
         else:
             # we have a valid line style so save it
             self.line_style = _style
