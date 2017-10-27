@@ -56,8 +56,14 @@ POLAR_WIND_PLOT_VERSION = '0.1.0'
 
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
-
+                       
 DEFAULT_NO_RINGS = 5
+
+DEFAULT_NO_PETALS = 16
+
+DEFAULT_PETAL_WIDTH = 0.8
+
+DEFAULT_BULLSEYE = 0.1
 
 DISTANCE_LOOKUP = {'km_per_hour': 'km',
                    'mile_per_hour': 'mile',
@@ -408,7 +414,7 @@ class PolarWindPlot(object):
 
         # number of rings on the polar plot
         self.rings = int(self.plot_dict.get('polar_rings', DEFAULT_NO_RINGS))
-
+        
         # Boundaries for speed range bands, these mark the colour boundaries
         # on the stacked bar in the legend. 7 elements only (ie 0, 10% of max,
         # 20% of max...100% of max)
@@ -1003,9 +1009,29 @@ class PolarWindRosePlot(PolarWindPlot):
         # do we display a legend, default to True
         self.legend = tobool(self.plot_dict.get('legend', True))
         # get petal width, if not defined then set default to 16
-        self.petal_width = int(self.plot_dict.get('petal_width', 16))
+        self.petals = int(self.plot_dict.get('petals', DEFAULT_NO_PETALS))
+        if self.petals < 2:
+            logdbg("Petals out of range '%d', using default '%d' instead" % (self.petals, DEFAULT_NO_PETALS))
+            self.petals = DEFAULT_NO_PETALS
+        elif self.petals > 360:
+            logdbg("Petals out of range '%d', using default '%d' instead" % (self.petals, DEFAULT_NO_PETALS))
+            self.petals = DEFAULT_NO_PETALS
+        # get petal width, if not defined then set default to 16
+        self.petal_width = float(self.plot_dict.get('petal_width', DEFAULT_PETAL_WIDTH))
+        if self.petal_width < 0.01 :
+            logdbg("petal_width out of range '%d', using default '%d' instead" % (self.petal_width, DEFAULT_PETAL_WIDTH))
+            self.petal_width = DEFAULT_PETAL_WIDTH
+        elif self.petal_width > 1.0:
+            logdbg("petal_width out of range '%d', using default '%d' instead" % (self.petal_width, DEFAULT_PETAL_WIDTH))
+            self.petal_width = DEFAULT_PETAL_WIDTH
         # bullseye radius as a proprotion of the plot area radius
-        self.bullseye = 0.1
+        self.bullseye = float(self.plot_dict.get('bullseye', DEFAULT_BULLSEYE))
+        if self.bullseye < 0.01 :
+            logdbg("bullseye out of range '%d', using default '%d' instead" % (self.bullseye, DEFAULT_BULLSEYE))
+            self.bullseye = DEFAULT_BULLSEYE
+        elif self.bullseye > 1.0:
+            logdbg("bullseye out of range '%d', using default '%d' instead" % (self.bullseye, DEFAULT_BULLSEYE))
+            self.bullseye = DEFAULT_BULLSEYE
 
     def render(self, title):
         """Main entry point to generate a polar wind rose plot."""
@@ -1040,9 +1066,9 @@ class PolarWindRosePlot(PolarWindPlot):
         """Setup the rose plot render."""
 
         # Setup 2D list for wind direction. wind_bin[0] represents each of
-        # 16 compass directions ([0] is N, [1] is ENE etc). wind_bin[1] holds
+        # 'petals' compass directions ([0] is N, increasing clockwise). wind_bin[1] holds
         # count of obs in a partiuclr speed range for given direction
-        wind_bin = [[0 for x in range(7)] for x in range(17)]
+        wind_bin = [[0 for x in range(7)] for x in range(self.petals + 1)]
         # setup list to hold obs counts for each speed range
         speed_bin = [0 for x in range(7)]
         # Loop through each sample and increment direction counts and speed
@@ -1053,9 +1079,9 @@ class PolarWindRosePlot(PolarWindPlot):
             this_speed_vec = self.speed_vec[0][i]
             this_dir_vec = self.dir_vec[0][i]
             if (this_speed_vec is None) or (this_dir_vec is None):
-                wind_bin[16][6] += 1
+                wind_bin[self.petals][6] += 1
             else:
-                bin = int((this_dir_vec + 11.25) / 22.5) % 16 # TODO 16 is a magic number
+                bin = int((this_dir_vec + (180.0/self.petals)) / (360.0/self.petals)) % self.petals
                 if this_speed_vec > self.speed_list[5]:
                     wind_bin[bin][6] += 1
                 elif this_speed_vec > self.speed_list[4]:
@@ -1071,14 +1097,14 @@ class PolarWindRosePlot(PolarWindPlot):
                 else:
                     wind_bin[bin][0] += 1
         # add 'None' obs to 0 speed count
-        speed_bin[0] += wind_bin[16][6]
+        speed_bin[0] += wind_bin[self.petals][6]
         # don't need the 'None' counts so we can delete them
         del wind_bin[-1]
         # Now set total (direction independent) speed counts. Loop through
         # each petal speed range and increment direction independent speed
         # ranges as necessary.
         for j in range(7):
-            for i in range(16):
+            for i in range(self.petals):
                 speed_bin[j] += wind_bin[i][j]
         # Calc the value to represented by outer ring (range 0 to 1). Value to
         # rounded up to next multiple of 0.05 (ie next 5%)
@@ -1086,35 +1112,45 @@ class PolarWindRosePlot(PolarWindPlot):
         # Find which wind rose arm to use to display ring range labels - look
         # for one that is relatively clear. Only consider NE, SE, SW and NW;
         # preference in order is SE, SW, NE and NW. label_dir stored as an
-        # integer corresponding to the windrose arms, 2=NE, 6=SE, 10=SW, 14=NW.
+        # integer corresponding to a 16 windrose arms, 2=NE, 6=SE, 10=SW, 14=NW.
         # Is SE clear, if < 30% of the max value is in use its clear.
-        if sum(wind_bin[6]) / float(self.samples) <= 0.3 * self.maxRingValue:
+        _se = int(self.petals * 0.375)
+        _ne = int(self.petals * 0.125)
+        _sw = int(self.petals * 0.625)
+        _nw = int(self.petals * 0.875)
+        _dir_list = []
+        _dir_list.append(_sw)
+        _dir_list.append(_ne)
+        _dir_list.append(_nw)
+        dict = {_ne:2, _se:6, _sw:10, _nw:14}
+        if sum(wind_bin[_se]) / float(self.samples) <= 0.3 * self.maxRingValue:
             # SE is clear so take it
-            label_dir = 6
+            label_dir = dict[_se]
         else:
             # SE not clear so look at the others in turn
-            for i in [10, 2, 14]:
+            for i in _dir_list:
                 # is SW, NE or NW clear
                 if sum(wind_bin[i])/float(self.samples) <= 0.3 * self.maxRingValue:
                     # it's clear so take it
-                    label_dir = i
+                    label_dir = dict[i]
                     # we have finished looking so exit the for loop
                     break
             else:
+                _dir_list.insert(0, _se) # prepend se direction to list
                 # none are free so take the smallest of the four
                 # set max possible number of readings + 1
                 labelCount = self.samples + 1
-                # start at NE
-                i = 2
+                # start at SE
+                i = _se
                 # iterate over the possible directions
-                for i in [2, 6, 10, 14]:
+                for i in _dir_list:
                     # if this direction has fewer obs than previous best then
                     # remember it
                     if sum(wind_bin[i]) < labelCount:
                         # set min count so far to this bin
                         labelCount = sum(wind_bin[i])
                         # set label_dir to this direction
-                        label_dir = i
+                        label_dir = dict[i]
         self.label_dir = label_dir
         # save wind_bin, we need it later to render the rose plot
         self.wind_bin = wind_bin
@@ -1130,11 +1166,13 @@ class PolarWindRosePlot(PolarWindPlot):
         b_radius = self.bullseye * self.max_plot_dia / 2.0
         # calculate the space left in which to plot the rose 'petals'
         petal_space = self.max_plot_dia / 2.0 - b_radius
-
+        
+        _half_petal_arc = (180.0*self.petal_width/self.petals)
+        
         # Plot wind rose petals. Each petal is constructed from overlapping
         # pie slices starting from outside (biggest) and working in (smallest)
         # start at 'North' windrose petal
-
+        
         # loop through each wind rose arm
         for a in range(len(self.wind_bin)):
             # calculate the sum of all samples for this arm
@@ -1155,8 +1193,8 @@ class PolarWindRosePlot(PolarWindPlot):
                             self.origin_y + radius)
                     # draw pie slice
                     self.draw.pieslice(bbox,
-                                       int(a * 22.5 - 90 - self.petal_width / 2),
-                                       int(a * 22.5 - 90 + self.petal_width / 2),
+                                       int(a * (360.0/self.petals) - 90 - _half_petal_arc),
+                                       int(a * (360.0/self.petals) - 90 + _half_petal_arc),
                                        fill=self.plot_colors[s], outline='black')
                     # finished with this bin, so reduce our arm sum by the bin
                     # we just plotted
