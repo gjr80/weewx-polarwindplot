@@ -56,7 +56,7 @@ POLAR_WIND_PLOT_VERSION = '0.1.0'
 
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
-                       
+
 DEFAULT_NO_RINGS = 5
 
 DISTANCE_LOOKUP = {'km_per_hour': 'km',
@@ -408,7 +408,7 @@ class PolarWindPlot(object):
 
         # number of rings on the polar plot
         self.rings = int(self.plot_dict.get('polar_rings', DEFAULT_NO_RINGS))
-        
+
         # Boundaries for speed range bands, these mark the colour boundaries
         # on the stacked bar in the legend. 7 elements only (ie 0, 10% of max,
         # 20% of max...100% of max)
@@ -661,16 +661,16 @@ class PolarWindPlot(object):
     def render_polar_grid(self, bullseye=0):
         """Render polar plot grid.
 
-        Render the polar grid on which the plot will be displayed. This 
+        Render the polar grid on which the plot will be displayed. This
         includes the axes, axes labels, rings and ring labels.
-        
+
         Inputs:
-            bullseye: radius of the bullseye to be displayed on the polar grid 
+            bullseye: radius of the bullseye to be displayed on the polar grid
                       as a proportion of the polar grid radius
         """
 
         # render the rings
-        
+
         # calculate the space in pixels between each ring
         ring_space = (1 - bullseye) * self.max_plot_dia/(2.0 * self.rings)
         # calculate the radius of the bullseye in pixels
@@ -688,7 +688,7 @@ class PolarWindPlot(object):
                               fill=self.image_back_circle_color)
 
         # render the ring labels
-        
+
         # first, initialise a list to hold the labels
         labels = list((None for x in range(self.rings)))
         # loop over the rings getting the label for each ring
@@ -696,8 +696,8 @@ class PolarWindPlot(object):
             labels[i] = self.get_ring_label(i + 1)
         # calculate location of ring labels, first we need the angle to use
         angle = 7 * math.pi / 4 + int(self.label_dir / 4.0) * math.pi / 2
-        # Now draw ring labels. For clarity each label (except for outside 
-        # label) is drawn on a rectangle with background colour set to that of 
+        # Now draw ring labels. For clarity each label (except for outside
+        # label) is drawn on a rectangle with background colour set to that of
         # the polar plot background.
         # iterate over each of the rings
         for i in range(self.rings):
@@ -706,7 +706,7 @@ class PolarWindPlot(object):
                 # calculate the width and heihgt of the label text
                 width, height = self.draw.textsize(labels[i],
                                                    font=self.plot_font)
-                # find the distance of the midpoint of the text box from the 
+                # find the distance of the midpoint of the text box from the
                 # plot origin
                 radius = bullseye_radius + (i + 1) * ring_space
                 # calculate x and y coords (top left corner) for the text
@@ -898,7 +898,7 @@ class PolarWindPlot(object):
                     int(x + size), int(y + size))
             if marker_type == "dot" :
                 self.draw.ellipse(bbox, outline=marker_color, fill=marker_color)
-            else :
+            else:
                 # Assume circle
                 self.draw.ellipse(bbox, outline=marker_color)
         return None
@@ -955,7 +955,7 @@ class PolarWindPlot(object):
             last_y = y
             # increment the angle
             a += 1
-        # once we have finished the curve {if any was plotted at all) we need to draw the last 
+        # once we have finished the curve {if any was plotted at all) we need to draw the last
         # incremental point to our orignal end point. In instances when the angle_span is < 2 degrees
         # this will be the only segment drawn
         xy = (last_x, last_y, end_x, end_y)
@@ -1130,21 +1130,21 @@ class PolarWindRosePlot(PolarWindPlot):
         b_radius = self.bullseye * self.max_plot_dia / 2.0
         # calculate the space left in which to plot the rose 'petals'
         petal_space = self.max_plot_dia / 2.0 - b_radius
-        
+
         # Plot wind rose petals. Each petal is constructed from overlapping
         # pie slices starting from outside (biggest) and working in (smallest)
         # start at 'North' windrose petal
-        
+
         # loop through each wind rose arm
         for a in range(len(self.wind_bin)):
             # calculate the sum of all samples for this arm
             arm_sum = sum(self.wind_bin[a])
             # we only need to do something if we have data to plot
             if arm_sum > 0:
-                # loop through each of the bins that make up this arm, start at 
+                # loop through each of the bins that make up this arm, start at
                 # the outermost (highest) and work our way in
                 for s in range(len(self.speed_list) - 1, 0, -1):
-                    # calc radius in pixels of the pie slice that represents 
+                    # calc radius in pixels of the pie slice that represents
                     # the current bin
                     proportion = arm_sum / (self.maxRingValue * self.samples)
                     radius = int(b_radius + proportion * petal_space)
@@ -1158,10 +1158,10 @@ class PolarWindRosePlot(PolarWindPlot):
                                        int(a * 22.5 - 90 - self.petal_width / 2),
                                        int(a * 22.5 - 90 + self.petal_width / 2),
                                        fill=self.plot_colors[s], outline='black')
-                    # finished with this bin, so reduce our arm sum by the bin 
+                    # finished with this bin, so reduce our arm sum by the bin
                     # we just plotted
                     arm_sum -= self.wind_bin[a][s]
-        
+
         # draw 'bullseye' to represent windSpeed=0 or calm
         # produce the label
         label0 = str(int(round(100.0 * self.speed_bin[0] / sum(self.speed_bin), 0))) + '%'
@@ -1223,8 +1223,9 @@ class PolarWindTrailPlot(PolarWindPlot):
 
         # do we display a legend, default to True
         self.legend = tobool(self.plot_dict.get('legend', True))
-        # get marker_type, default to 'circle'
-        self.marker_type = self.plot_dict.get('marker_type', 'circle')
+        # get marker_type, default to None
+        _marker_type = self.plot_dict.get('marker_type')
+        self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # get line_style, default to radial
@@ -1353,7 +1354,7 @@ class PolarWindTrailPlot(PolarWindPlot):
             if i !=_final_vector_dir:
                 self.label_dir = i
                 break
-        
+
         # determine the 'unit' label to use on ring labels
         self.ring_units = DISTANCE_LOOKUP[self.speed_vec[1]]
 
@@ -1499,8 +1500,9 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # Display oldest or newest data at centre? Default to oldest.
         self.centre = self.plot_dict.get('centre', 'oldest')
 
-        # get marker_type, default to 'circle'
-        self.marker_type = self.plot_dict.get('marker_type', 'circle')
+        # get marker_type, default to None
+        _marker_type = self.plot_dict.get('marker_type')
+        self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # get line_style, default to radial
@@ -1762,11 +1764,9 @@ class PolarWindScatterPlot(PolarWindPlot):
 
         # we don't display a legend on a scatter plot so force legend to False
         self.legend = False
-        #  Get marker_type, can be 'cross', 'x', 'circle', 'box' or 'none'. Default to  'circle'
-        self.marker_type = self.plot_dict.get('marker_type', 'circle')
-        if self.marker_type == 'none':
-            self.marker_type = None
-
+        #  Get marker_type, default to  None
+        _marker_type = self.plot_dict.get('marker_type')
+        self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # Get line style, can be 'straight', 'spoke', 'radial' or 'none'. Default to 'straight'
