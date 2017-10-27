@@ -56,7 +56,7 @@ POLAR_WIND_PLOT_VERSION = '0.1.0'
 
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
-                       
+
 DEFAULT_NO_RINGS = 5
 
 DEFAULT_NO_PETALS = 16
@@ -414,7 +414,7 @@ class PolarWindPlot(object):
 
         # number of rings on the polar plot
         self.rings = int(self.plot_dict.get('polar_rings', DEFAULT_NO_RINGS))
-        
+
         # Boundaries for speed range bands, these mark the colour boundaries
         # on the stacked bar in the legend. 7 elements only (ie 0, 10% of max,
         # 20% of max...100% of max)
@@ -1166,13 +1166,13 @@ class PolarWindRosePlot(PolarWindPlot):
         b_radius = self.bullseye * self.max_plot_dia / 2.0
         # calculate the space left in which to plot the rose 'petals'
         petal_space = self.max_plot_dia / 2.0 - b_radius
-        
+
         _half_petal_arc = (180.0*self.petal_width/self.petals)
-        
+
         # Plot wind rose petals. Each petal is constructed from overlapping
         # pie slices starting from outside (biggest) and working in (smallest)
         # start at 'North' windrose petal
-        
+
         # loop through each wind rose arm
         for a in range(len(self.wind_bin)):
             # calculate the sum of all samples for this arm
@@ -1266,8 +1266,8 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # get line_style, default to radial
-        self.line_style = self.plot_dict.get('line_style', 'radial')
+        # get line_type, default to radial
+        self.line_type = self.plot_dict.get('line_type', 'radial')
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
 
@@ -1481,11 +1481,11 @@ class PolarWindTrailPlot(PolarWindPlot):
             # determine line color to be used
             line_color = self.get_speed_color(self.line_color,
                                               this_speed_vec)
-            # draw the line, line style can be 'straight', 'radial' or no line
-            if self.line_style == 'straight':
+            # draw the line, line type can be 'straight', 'radial' or no line
+            if self.line_type == 'straight':
                 vector = (int(lastx), int(lasty), int(x), int(y))
                 self.draw.line(vector, fill=line_color, width=self.line_width)
-            elif self.line_style == "radial":
+            elif self.line_type == "radial":
                 #self.joinCurve(lasta, lastr, lastx, lasty, thisa, line_color)
                 self.joinCurve(lastx, lasty, lastr, lasta,
                                x, y, radius, thisa, line_color, self.line_width)
@@ -1543,8 +1543,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # get line_style, default to radial
-        self.line_style = self.plot_dict.get('line_style', 'radial')
+        # get line_type, default to radial
+        self.line_type = self.plot_dict.get('line_type', 'radial')
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
@@ -1674,12 +1674,12 @@ class PolarWindSpiralPlot(PolarWindPlot):
                 # determine line color to be used
                 line_color = self.get_speed_color(self.line_color,
                                                   this_speed_vec)
-                # draw the line, line style can be 'straight', 'radial' or no
+                # draw the line, line type can be 'straight', 'radial' or no
                 # line
-                if self.line_style == "straight" :
+                if self.line_type == "straight" :
                     vector = (int(lastx), int(lasty), int(self.x), int(self.y))
                     self.draw.line(vector, fill=line_color, width=self.line_width)
-                elif self.line_style == "radial" :
+                elif self.line_type == "radial" :
                     #self.joinCurve(lasta, lastr, lastx, lasty, thisa, line_color)
                     self.joinCurve(lastx, lasty, lastr, lasta,
                                            self.x, self.y, self.radius, thisa,
@@ -1807,22 +1807,22 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # Get line style, can be 'straight', 'spoke', 'radial' or 'none'. Default to 'straight'
-        _style = self.plot_dict.get('line_style', 'radial')
-        # we have a line style but is it one we know about
+        # Get line type, can be 'straight', 'spoke', 'radial' or 'none'. Default to 'straight'
+        _style = self.plot_dict.get('line_type', 'radial')
+        # we have a line type but is it one we know about
         if _style is not None and _style.lower() not in ['straight', 'spoke', 'radial', 'none', '']:
-            # it's a line style I don't understand, set line_style to
+            # it's a line type I don't understand, set line_type to
             # 'radial' so that something is displayed then log it
-            self.line_style = 'radial'
-            logdbg("Unknown scatter plot line style '%s', using 'radial' instead" % (_style, ))
+            self.line_type = 'radial'
+            logdbg("Unknown scatter plot line type '%s', using 'radial' instead" % (_style, ))
         else:
-            # we have a valid line style so save it
-            self.line_style = _style
+            # we have a valid line type so save it
+            self.line_type = _style
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
         # Get line_color, can be 'age' or a valid color. Default to 'age'.
         _line_color = self.plot_dict.get('line_color', 'age')
-        # we have a line color but is it valid or a style we know about
+        # we have a line color but is it valid or a type we know about
         if _line_color in ['age']:
             # it's a color style I understand
             self.line_color = _line_color
@@ -1903,7 +1903,7 @@ class PolarWindScatterPlot(PolarWindPlot):
         # plot any markers
 
         # plot the scatter line if required
-        if self.line_style != 'none':
+        if self.line_type != 'none':
             # initialise values for the last plot point, use None as there is
             # no last point the first time around
             lastx = lasty = lasta = lastr = None
@@ -1932,15 +1932,15 @@ class PolarWindScatterPlot(PolarWindPlot):
                         else:
                             # fixed line color
                             line_color = self.line_color
-                        # draw the line, line style can be 'straight', 'spoke',
+                        # draw the line, line type can be 'straight', 'spoke',
                         # 'radial' or no line
-                        if self.line_style == "straight":
+                        if self.line_type == "straight":
                             xy = (lastx, lasty, x, y)
                             self.draw.line(xy, fill=line_color, width=self.line_width)
-                        elif self.line_style == "spoke":
+                        elif self.line_type == "spoke":
                             spoke = (self.origin_x, self.origin_y, x, y)
                             self.draw.line(spoke, fill=line_color, width=self.line_width)
-                        elif self.line_style == "radial": # TODO last one should be default else
+                        elif self.line_type == "radial": # TODO last one should be default else
                             self.joinCurve(lastx, lasty, lastr, lasta,
                                            x, y, radius, this_dir_vec,
                                            line_color, self.line_width)
