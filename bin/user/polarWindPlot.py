@@ -1266,8 +1266,9 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # get line_type, default to radial
-        self.line_type = self.plot_dict.get('line_type', 'radial')
+        # get line_type, default to None
+        self.line_type = self.plot_dict.get('line_type')
+        self.line_type = None if self.line_type == '' else self.line_type
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
 
@@ -1543,8 +1544,9 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # get line_type, default to radial
-        self.line_type = self.plot_dict.get('line_type', 'radial')
+        # get line_type, default to None
+        self.line_type = self.plot_dict.get('line_type')
+        self.line_type = None if self.line_type == '' else self.line_type
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
@@ -1808,16 +1810,19 @@ class PolarWindScatterPlot(PolarWindPlot):
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
         # Get line type, can be 'straight', 'spoke', 'radial' or 'none'. Default to 'straight'
-        _style = self.plot_dict.get('line_type', 'radial')
+        # get line_type, default to None
+        self.line_type = self.plot_dict.get('line_type')
+        self.line_type = None if self.line_type == '' else self.line_type
+        #_style = self.plot_dict.get('line_type', 'radial')
         # we have a line type but is it one we know about
-        if _style is not None and _style.lower() not in ['straight', 'spoke', 'radial', 'none', '']:
-            # it's a line type I don't understand, set line_type to
-            # 'radial' so that something is displayed then log it
-            self.line_type = 'radial'
-            logdbg("Unknown scatter plot line type '%s', using 'radial' instead" % (_style, ))
-        else:
-            # we have a valid line type so save it
-            self.line_type = _style
+        # if _style is not None and _style.lower() not in ['straight', 'spoke', 'radial', 'none', '']:
+            # # it's a line type I don't understand, set line_type to
+            # # 'radial' so that something is displayed then log it
+            # self.line_type = 'radial'
+            # logdbg("Unknown scatter plot line type '%s', using 'radial' instead" % (_style, ))
+        # else:
+            # # we have a valid line type so save it
+            # self.line_type = _style
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
         # Get line_color, can be 'age' or a valid color. Default to 'age'.
@@ -1903,7 +1908,7 @@ class PolarWindScatterPlot(PolarWindPlot):
         # plot any markers
 
         # plot the scatter line if required
-        if self.line_type != 'none':
+        if self.line_type is not None:
             # initialise values for the last plot point, use None as there is
             # no last point the first time around
             lastx = lasty = lasta = lastr = None
