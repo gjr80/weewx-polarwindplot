@@ -11,10 +11,10 @@
 #
 # Installer for PolarWindPlot Image Generator Extension
 #
-# Version: 0.1.0                                      Date: ?? ??????ber 2017
+# Version: 0.1.0                                      Date: ?? ??????ber 2018
 #
 # Revision History
-#   ?? ??????ber 2017   v0.1.0
+#   ?? ??????ber 2018   v0.1.0
 #       -   Initial implementation
 #
 
@@ -29,10 +29,13 @@ from setup import ExtensionInstaller
 REQUIRED_VERSION = "3.2.0"
 POLARWINDPLOT_VERSION = "0.1.0"
 
+
 def loader():
     return PolarWindPlotInstaller()
 
+
 class PolarWindPlotInstaller(ExtensionInstaller):
+
     def __init__(self):
         if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_VERSION):
             msg = "%s requires weeWX %s or greater, found %s" % (''.join(('PolarWindPlot ', POLARWINDPLOT_VERSION)),
@@ -44,7 +47,7 @@ class PolarWindPlotInstaller(ExtensionInstaller):
             name='PolarWindPlot',
             description='Polar wind plot image generator for weeWX.',
             author="Gary Roderick Neil Trimboy",
-            author_email="gjroderick@gmail.com",
+            author_email="gjroderick@gmail.com neil.trimboy@gmail.com",
             config={
                 'StdReport': {
                     'PolarWindPlot': {
@@ -83,7 +86,8 @@ class PolarWindPlotInstaller(ExtensionInstaller):
                             'legend_font_color': '0x000000',
                             'label_font_size': '12',
                             'label_font_color': '0x000000',
-                            'plot_colors': ['aqua', '0xFF9900', '0xFF3300', '0x009900', '0x00CC00', '0x33FF33', '0x00FFCC'],
+                            'plot_colors': ['aqua', '0xFF9900', '0xFF3300', '0x009900',
+                                            '0x00CC00', '0x33FF33', '0x00FFCC'],
                             'petal_width': '16',
                             'day_images': {
                                 'period': '86400',
