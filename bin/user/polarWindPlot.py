@@ -2,8 +2,8 @@
 #
 # A weeWX generator to generate a various polar wind plots.
 #
-#   Copyright (c) 2017  Gary Roderick           gjroderick<at>gmail.com
-#                       Neil Trimboy            neil.trimboy<at>gmail.com
+# Copyright (c) 2017-2018   Gary Roderick           gjroderick<at>gmail.com
+#                           Neil Trimboy            neil.trimboy<at>gmail.com
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free
@@ -35,9 +35,9 @@ for use elsewhere. The Polar Wind Plot Image Generator can generate the
 following polar wind plots:
 
 -   wind rose
--   ?
--   ?
--   ?
+-   wind scatter
+-   wind spiral
+-   wind trail
 
 Various parameters including the plot type, period, source data field, units
 of measure and colours can be controlled by the user through various
@@ -90,7 +90,7 @@ SPEED_LOOKUP = {'km_per_hour': 'km/h',
 def logmsg(lvl, msg):
     syslog.syslog(lvl, 'polarwindplot: %s' % msg)
 
-// print 5*2
+
 def logdbg(msg):
     logmsg(syslog.LOG_DEBUG, msg)
 
@@ -135,6 +135,7 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                                                      stn_info,
                                                      record)
 
+        # TODO need to support user specified binding not just the StdArchive one
         # get a db manager for our archive
         _binding = self.config_dict['StdArchive'].get('data_binding',
                                                       'wx_binding')
@@ -147,13 +148,13 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
         self.converter = weewx.units.Converter.fromSkinDict(self.skin_dict)
         # determine how much logging is desired
         self.log_success = tobool(self.polar_dict.get('log_success', True))
-
+        # initialise the plot period
         self.period = None
 
     def run(self):
         """Main entry point for generator."""
 
-        # do any setup so we may generate plots
+        # do any setup required before we generate the plots
         self.setup()
         # generate the plots
         self.genPlots(self.gen_ts)
@@ -207,7 +208,8 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                 img_file = os.path.join(image_root, '%s.%s' % (plot,
                                                                image_format))
 
-                # check whether this plot needs to be done at all
+                # check whether this plot needs to be done at all, if not move
+                # onto the next plot
                 if self.skipThisPlot(plotgen_ts, img_file, plot):
                     continue
 
@@ -234,37 +236,35 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                     title = source_options.get('label', '')
 
                     # Determine the speed and direction archive fields to be
-                    # used. Can really only plot windSpeed and windGust, if
-                    # anything else default to windSpeed, windDir.
-                    speed_field = source_options.get('data_type', source)
-                    if speed_field == 'windSpeed':
+                    # used. Can really only plot windSpeed, windDir and
+                    # windGust, windGustDir. If anything else default to
+                    # windSpeed, windDir.
+                    sp_field = source_options.get('data_type', source)
+                    if sp_field == 'windSpeed':
                         dir_field = 'windDir'
-                    elif speed_field == 'windGust':
+                    elif sp_field == 'windGust':
                         dir_field = 'windGustDir'
-                    elif speed_field == 'windrun':
-                        speed_field = 'windSpeed'
-                        dir_field = 'windDir'
                     else:
-                        speed_field = 'windSpeed'
+                        sp_field = 'windSpeed'
                         dir_field = 'windDir'
                     # hit the archive to get speed and direction plot data
-                    _span = TimeSpan(plotgen_ts - self.period + 1, plotgen_ts)
-                    (_, speed_time_vec, speed_vec_raw) = self.dbmanager.getSqlVectors(_span,
-                                                                                      speed_field)
-                    (_, dir_time_vec, dir_vec) = self.dbmanager.getSqlVectors(_span,
-                                                                              dir_field)
+                    t_span = TimeSpan(plotgen_ts - self.period + 1, plotgen_ts)
+                    (_, sp_t_vec, sp_vec_raw) = self.dbmanager.getSqlVectors(t_span,
+                                                                             sp_field)
+                    (_, dir_t_vec, dir_vec) = self.dbmanager.getSqlVectors(t_span,
+                                                                           dir_field)
                     # convert the speed values to the units to be used in the
                     # plot
-                    speed_vec = self.converter.convert(speed_vec_raw)
+                    speed_vec = self.converter.convert(sp_vec_raw)
                     # get the units label for our speed data
-                    units = self.skin_dict['Units']['Labels'][speed_vec[1]].strip()
+                    units = self.skin_dict['Units']['Labels'][speed_vec.unit].strip()
 
                     # add the source data to be plotted to our plot object
-                    plot_obj.add_data(speed_field,
+                    plot_obj.add_data(sp_field,
                                       speed_vec,
                                       dir_vec,
-                                      speed_time_vec,
-                                      len(speed_time_vec[0]),
+                                      sp_t_vec,
+                                      len(sp_t_vec.value),
                                       units)
 
                     # call the render() method of the polar plot object to
@@ -286,7 +286,7 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
     def _polar_plot_factory(self, plot_dict):
         """Factory method to produce a polar plot object."""
 
-        # what type of plot is it
+        # what type of plot is it, default to wind rose
         plot_type = plot_dict.get('plot_type', 'rose').lower()
         # create and return the relevant polar plot object
         if plot_type == 'rose':
@@ -443,6 +443,7 @@ class PolarWindPlot(object):
         # setup a list with speed range boundaries
         self.speed_list = []
 
+        # initialise a number of properties to be used later
         self.speed_field = None
         self.max_speed_range = None
         self.speed_vec = None
@@ -460,9 +461,11 @@ class PolarWindPlot(object):
         self.timestamp_location = None
 
         self.max_plot_dia = None
-
         self.origin_x = None
         self.origin_y = None
+        self.plot_font = None
+        self.legend_font = None
+        self.label_font = None
 
         self.draw = None
 
@@ -470,12 +473,7 @@ class PolarWindPlot(object):
         self.legend_title = None
 
         self.speed_bin = None
-
         self.label_dir = None
-
-        self.plot_font = None
-        self.legend_font = None
-        self.label_font = None
 
     def add_data(self, speed_field, speed_vec, dir_vec, time_vec, samples, units):
         """Add source data to the plot.
@@ -483,8 +481,10 @@ class PolarWindPlot(object):
         Inputs:
             speed_field: weeWX archive field being used as the source for speed
                          data
-            speed_vec:   vector of speed data to be plotted
-            dir_vec:     vector of direction data corresponding to speed_vec
+            speed_vec:   ValueTuple containing vector of speed data to be
+                         plotted
+            dir_vec:     ValueTuple containing vector of direction data
+                         corresponding to speed_vec
             samples:     number of possible vector sample points, this may be
                          greater than or equal to the number of speed_vec or
                          dir_vec elements
@@ -494,7 +494,7 @@ class PolarWindPlot(object):
         # weeWX archive field that was used for our speed data
         self.speed_field = speed_field
         # find maximum speed from our data
-        max_speed = max(speed_vec[0])
+        max_speed = max(speed_vec.value)
         # set upper speed range for our plot, set to a multiple of 10 for a
         # neater display
         self.max_speed_range = (int(max_speed / 10.0) + 1) * 10
@@ -553,8 +553,7 @@ class PolarWindPlot(object):
         # sensibly for all locales
         self.timestamp_format = options.get('time_stamp', '%x %X')
         # get the timestamp location, if not set then don't display at all
-        _location = options.get('time_stamp_location', None)
-        self.timestamp_location = _location if _location is not None else None
+        self.timestamp_location = options.get('time_stamp_location')
 
     def set_polar_grid(self):
         """Setup the polar plot grid.
@@ -693,7 +692,8 @@ class PolarWindPlot(object):
                         org_y - self.legend_bar_width / 6,
                         org_x + bulb_d / 2 + self.legend_bar_width / 2,
                         org_y - self.legend_bar_width / 6 + bulb_d)
-        self.draw.ellipse(bounding_box, outline='black', fill=self.plot_colors[0])
+        self.draw.ellipse(bounding_box, outline='black',
+                          fill=self.plot_colors[0])
 
         # draw legend title
         # position the legend title
@@ -853,8 +853,6 @@ class PolarWindPlot(object):
                                self.title.encode("utf-8"),
                                fill=self.label_font_color,
                                font=self.label_font)
-        else:
-            self.title_height = 0
 
     def render_timestamp(self):
         """Render plot timestamp."""
@@ -928,12 +926,14 @@ class PolarWindPlot(object):
         """Render a marker.
 
         Inputs:
-            x: start point plot x coordinate
-            y: start point plot y coordinate
-            size: start point vector radius
-            style: start point vector direction
-            color:   color to be used
+            x:            Start point plot x coordinate
+            y:            Start point plot y coordinate
+            size: start   Point vector radius
+            marker_type:  Type of marker to be used, can be cross, x, box, dot
+                          or circle. Default is circle.
+            marker_color: Color to be used
         """
+
         if marker_type == "cross":
             line = (int(x - size), int(y), int(x + size), int(y))
             self.draw.line(line, fill=marker_color, width=1)
@@ -954,32 +954,34 @@ class PolarWindPlot(object):
             line = (int(x - size), int(y + size), int(x + size), int(y + size))
             self.draw.line(line, fill=marker_color, width=1)
         else:
-            # Assume circle or dot
+            # dot or circle, use circle if it's an unsupported marker type
             bbox = (int(x - size), int(y - size),
                     int(x + size), int(y + size))
             if marker_type == "dot":
+                # a dot is just a filled circle
                 self.draw.ellipse(bbox, outline=marker_color, fill=marker_color)
             else:
-                # Assume circle
+                # either circle was specified or it is an unsupported marker
+                # type, either way use circle
                 self.draw.ellipse(bbox, outline=marker_color)
-        return None
 
-    def join_curve(self, start_x, start_y, start_r, start_a, end_x, end_y, end_r, end_a, color, line_width):
+    def join_curve(self, start_x, start_y, start_r, start_a,
+                   end_x, end_y, end_r, end_a, color, line_width):
         """Join two points with a curve.
 
-        Draw a smooth curve between two points by joing them with straight line
-        segments covering 1 degree of arc.
+        Draw a smooth curve between two points by joining them with straight
+        line segments each covering 1 degree of arc.
 
         Inputs:
-            start_x: start point plot x coordinate
-            start_y: start point plot y coordinate
-            start_r: start point vector radius (in pixels)
-            start_a: start point vector direction (degrees True)
-            end_x:   end point plot x coordinate
-            end_y:   end point plot y coordinate
-            end_r:   end point vector radius (in pixels)
-            end_a:   end point vector direction (degrees True)
-            color:   color to be used
+            start_x:     start point plot x coordinate
+            start_y:     start point plot y coordinate
+            start_r:     start point vector radius (in pixels)
+            start_a:     start point vector direction (degrees True)
+            end_x:       end point plot x coordinate
+            end_y:       end point plot y coordinate
+            end_r:       end point vector radius (in pixels)
+            end_a:       end point vector direction (degrees True)
+            color:       color to be used
             line_width : line width (pixels)
         """
 
@@ -1016,7 +1018,7 @@ class PolarWindPlot(object):
             last_y = y
             # increment the angle
             a += 1
-        # once we have finished the curve {if any was plotted at all) we need
+        # once we have finished the curve (if any was plotted at all) we need
         # to draw the last incremental point to our original end point. In
         # instances when the angle_span is < 2 degrees this will be the only
         # segment drawn
@@ -1067,38 +1069,29 @@ class PolarWindRosePlot(PolarWindPlot):
 
         # do we display a legend, default to True
         self.legend = tobool(self.plot_dict.get('legend', True))
-        # get petal width, if not defined then set default to 16
+        # get petal width, if not defined then use the default
         self.petals = int(self.plot_dict.get('petals', DEFAULT_NO_PETALS))
-        if self.petals < 2:
-            logdbg("Petals out of range '%d', using default '%d' instead" % (self.petals, DEFAULT_NO_PETALS))
+        if self.petals < 2 or self.petals > 360:
+            logdbg("Unsupported number of petals '%d', using default '%d' instead" % (self.petals,
+                                                                                      DEFAULT_NO_PETALS))
             self.petals = DEFAULT_NO_PETALS
-        elif self.petals > 360:
-            logdbg("Petals out of range '%d', using default '%d' instead" % (self.petals, DEFAULT_NO_PETALS))
-            self.petals = DEFAULT_NO_PETALS
-        # get petal width, if not defined then set default to 16
-        self.petal_width = float(self.plot_dict.get('petal_width', DEFAULT_PETAL_WIDTH))
-        if self.petal_width < 0.01:
-            logdbg("petal_width out of range '%d', using default '%d' instead" % (self.petal_width,
-                                                                                  DEFAULT_PETAL_WIDTH))
-            self.petal_width = DEFAULT_PETAL_WIDTH
-        elif self.petal_width > 1.0:
-            logdbg("petal_width out of range '%d', using default '%d' instead" % (self.petal_width,
-                                                                                  DEFAULT_PETAL_WIDTH))
+        # get petal width, if not defined then use the default
+        self.petal_width = float(self.plot_dict.get('petal_width',
+                                                    DEFAULT_PETAL_WIDTH))
+        if self.petal_width < 0.01 or self.petal_width > 1.0:
+            logdbg("Unsupported petal width '%d', using default '%d' instead" % (self.petal_width,
+                                                                                 DEFAULT_PETAL_WIDTH))
             self.petal_width = DEFAULT_PETAL_WIDTH
         # bullseye radius as a proportion of the plot area radius
         self.bullseye = float(self.plot_dict.get('bullseye', DEFAULT_BULLSEYE))
-        if self.bullseye < 0.01:
-            logdbg("bullseye out of range '%d', using default '%d' instead" % (self.bullseye, DEFAULT_BULLSEYE))
+        if self.bullseye < 0.01 or self.bullseye > 1.0:
+            logdbg("Unsupported bullseye size '%d', using default '%d' instead" % (self.bullseye,
+                                                                                   DEFAULT_BULLSEYE))
             self.bullseye = DEFAULT_BULLSEYE
-        elif self.bullseye > 1.0:
-            logdbg("bullseye out of range '%d', using default '%d' instead" % (self.bullseye, DEFAULT_BULLSEYE))
-            self.bullseye = DEFAULT_BULLSEYE
-
-        self.maxRingValue = None
-
+        # initialise some properties for use later
+        self.max_ring_val = None
         self.wind_bin = None
         self.ring_units = None
-        self.max_ring_value = None
 
     def render(self, title):
         """Main entry point to generate a polar wind rose plot."""
@@ -1117,14 +1110,17 @@ class PolarWindRosePlot(PolarWindPlot):
         self.set_speed_list()
         # set up the background polar grid
         self.set_polar_grid()
+        # setup for rendering
         self.set_plot()
-
+        # render the plot title
         self.render_title()
+        # render the legend
         self.render_legend()
-
-        self.render_polar_grid(self.bullseye)
-        # finally render the plot
+        # render the polar grid
+        self.render_polar_grid(bullseye=self.bullseye)
+        # render the plot
         self.render_plot()
+        # finally render the plot timestamp
         self.render_timestamp()
         # return the completed plot image
         return image
@@ -1144,12 +1140,12 @@ class PolarWindRosePlot(PolarWindPlot):
         # as 'calm' (or 0 speed) and (by definition) no direction and are
         # plotted in the 'bullseye' on the plot.
         for i in range(self.samples):
-            this_speed_vec = self.speed_vec[0][i]
-            this_dir_vec = self.dir_vec[0][i]
+            this_speed_vec = self.speed_vec.value[i]
+            this_dir_vec = self.dir_vec.value[i]
             if (this_speed_vec is None) or (this_dir_vec is None):
                 wind_bin[self.petals][6] += 1
             else:
-                bin = int((this_dir_vec + (180.0/self.petals)) / (360.0/self.petals)) % self.petals
+                bin = int((this_dir_vec + (180.0 / self.petals)) / (360.0 / self.petals)) % self.petals
                 if this_speed_vec > self.speed_list[5]:
                     wind_bin[bin][6] += 1
                 elif this_speed_vec > self.speed_list[4]:
@@ -1176,7 +1172,7 @@ class PolarWindRosePlot(PolarWindPlot):
                 speed_bin[j] += wind_bin[i][j]
         # Calc the value to represented by outer ring (range 0 to 1). Value to
         # rounded up to next multiple of 0.05 (ie next 5%)
-        self.maxRingValue = (int(max(sum(b) for b in wind_bin)/(0.05 * self.samples)) + 1) * 0.05
+        self.max_ring_val = (int(max(sum(b) for b in wind_bin) / (0.05 * self.samples)) + 1) * 0.05
 
         # TODO. Is there a better way to code / choose a free direction for ring labels
         # Find which wind rose arm to use to display ring range labels - look
@@ -1194,14 +1190,14 @@ class PolarWindRosePlot(PolarWindPlot):
         _dir_list.append(_nw)
         _dict = {_ne: 2, _se: 6, _sw: 10, _nw: 14}
         label_dir = None
-        if sum(wind_bin[_se]) / float(self.samples) <= 0.3 * self.maxRingValue:
+        if sum(wind_bin[_se]) / float(self.samples) <= 0.3 * self.max_ring_val:
             # SE is clear so take it
             label_dir = _dict[_se]
         else:
             # SE not clear so look at the others in turn
             for i in _dir_list:
                 # is SW, NE or NW clear
-                if sum(wind_bin[i])/float(self.samples) <= 0.3 * self.maxRingValue:
+                if sum(wind_bin[i])/float(self.samples) <= 0.3 * self.max_ring_val:
                     # it's clear so take it
                     label_dir = _dict[i]
                     # we have finished looking so exit the for loop
@@ -1212,8 +1208,6 @@ class PolarWindRosePlot(PolarWindPlot):
                 # none are free so take the smallest of the four
                 # set max possible number of readings + 1
                 label_count = self.samples + 1
-                # start at SE
-                i = _se
                 # iterate over the possible directions
                 for i in _dir_list:
                     # if this direction has fewer obs than previous best then
@@ -1229,7 +1223,6 @@ class PolarWindRosePlot(PolarWindPlot):
         self.speed_bin = speed_bin
         # 'units' to use on ring labels
         self.ring_units = '%'
-        self.max_ring_value = self.maxRingValue
 
     def render_plot(self):
         """Render the rose plot data."""
@@ -1239,7 +1232,7 @@ class PolarWindRosePlot(PolarWindPlot):
         # calculate the space left in which to plot the rose 'petals'
         petal_space = self.max_plot_dia / 2.0 - b_radius
 
-        _half_petal_arc = (180.0*self.petal_width/self.petals)
+        _half_petal_arc = 180.0 * self.petal_width / self.petals
 
         # Plot wind rose petals. Each petal is constructed from overlapping
         # pie slices starting from outside (biggest) and working in (smallest)
@@ -1256,7 +1249,7 @@ class PolarWindRosePlot(PolarWindPlot):
                 for s in range(len(self.speed_list) - 1, 0, -1):
                     # calc radius in pixels of the pie slice that represents
                     # the current bin
-                    proportion = arm_sum / (self.maxRingValue * self.samples)
+                    proportion = arm_sum / (self.max_ring_val * self.samples)
                     radius = int(b_radius + proportion * petal_space)
                     # set bound box for pie slice
                     bbox = (self.origin_x - radius,
@@ -1302,7 +1295,7 @@ class PolarWindRosePlot(PolarWindPlot):
         being displayed for the ring concerned.
 
         Input:
-            ring: ring number for which a lalbel is required, will be from
+            ring: ring number for which a label is required, will be from
                   1 (inside) to 5 (outside) inclusive
 
         Returns:
@@ -1310,7 +1303,7 @@ class PolarWindRosePlot(PolarWindPlot):
         """
 
         if ring > 1:
-            label_inc = self.max_ring_value / self.rings
+            label_inc = self.max_ring_val / self.rings
             return ''.join([str(int(round(label_inc * ring * 100, 0))),
                             self.ring_units])
         else:
@@ -1323,7 +1316,7 @@ class PolarWindRosePlot(PolarWindPlot):
 
 
 class PolarWindTrailPlot(PolarWindPlot):
-    """Specialise class to generate a trail plot."""
+    """Specialised class to generate a wind trail plot."""
 
     def __init__(self, skin_dict, plot_dict):
         """Initialise a PolarWindTrailPlot object."""
@@ -1370,8 +1363,8 @@ class PolarWindTrailPlot(PolarWindPlot):
 
         # set some properties to startup defaults
         self.max_vector_radius = None
-
         self.ring_units = None
+        self.factor = None
 
     def render(self, title):
         """Main entry point to generate a polar wind trail plot."""
@@ -1390,14 +1383,17 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.set_speed_list()
         # set up the background polar grid
         self.set_polar_grid()
+        # setup for rendering
         self.set_plot()
-
+        # render the plot title
         self.render_title()
+        # render the legend
         self.render_legend()
-
+        # render the polar grid
         self.render_polar_grid()
-        # finally render the plot
+        # render the plot
         self.render_plot()
+        # finally render the timestamp
         self.render_timestamp()
         # return the completed plot image
         return image
@@ -1416,24 +1412,24 @@ class PolarWindTrailPlot(PolarWindPlot):
         vec_x = 0
         vec_y = 0
         # how we calculate distance depends on the speed units in use
-        if self.speed_vec[1] == 'meter_per_second' or self.speed_vec[1] == 'meter_per_second':
-            factor = 1000.0
+        if self.speed_vec.unit == 'meter_per_second' or self.speed_vec.unit == 'meter_per_second':
+            self.factor = 1000.0
         else:
-            factor = 3600.0
+            self.factor = 3600.0
         # iterate over the samples, ignore the first since we don't know what
         # period (delta) it applies to
         # TODO. Legacy comment. NT Check this, its been changed to 1
         for i in range(1, self.samples):
-            this_dir_vec = self.dir_vec[0][i]
-            this_speed_vec = self.speed_vec[0][i]
+            this_dir_vec = self.dir_vec.value[i]
+            this_speed_vec = self.speed_vec.value[i]
             # ignore any speeds that are 0 or None and any directions that are
             # None
             if this_speed_vec is None or this_dir_vec is None or this_speed_vec == 0.0:
                 continue
             # the period in sec the current speed applies to
-            delta = self.time_vec[0][i] - self.time_vec[0][i-1]
+            delta = self.time_vec.value[i] - self.time_vec.value[i-1]
             # the corresponding distance
-            dist = this_speed_vec * delta / factor
+            dist = this_speed_vec * delta / self.factor
             # calculate new vector from centre for this point
             vec_x += dist * math.sin(math.radians((this_dir_vec + 180) % 360))
             vec_y += dist * math.cos(math.radians((this_dir_vec + 180) % 360))
@@ -1441,13 +1437,15 @@ class PolarWindTrailPlot(PolarWindPlot):
             if vec_radius > self.max_vector_radius:
                 self.max_vector_radius = vec_radius
 
-        # Find which wind rose arm to use to display ring range labels - look
-        # for one that is relatively clear. Only consider NE, SE, SW and NW;
-        # preference in order is SE, SW, NE and NW. label_dir stored as an
-        # integer corresponding to the windrose arms, 2=NE, 6=SE, 10=SW, 14=NW.
+        # Find which direction from the bullseye to use to display ring range
+        # labels - look for one that is relatively clear. Only consider NE,
+        # SE, SW and NW; preference in order is SE, SW, NE and NW. label_dir
+        # stored as an integer corresponding to the windrose arms, 2=NE, 6=SE,
+        # 10=SW, 14=NW.
+
         # iterate over the possible directions
-        #
-        # What quadrant is the final cumulative vector in
+
+        # what quadrant is the final cumulative vector in
         if vec_x >= 0:
             if vec_y >= 0:
                 # NE
@@ -1468,7 +1466,7 @@ class PolarWindTrailPlot(PolarWindPlot):
                 break
 
         # determine the 'unit' label to use on ring labels
-        self.ring_units = DISTANCE_LOOKUP[self.speed_vec[1]]
+        self.ring_units = DISTANCE_LOOKUP[self.speed_vec.unit]
 
     def render_plot(self):
         """Render the trail plot data."""
@@ -1477,11 +1475,6 @@ class PolarWindTrailPlot(PolarWindPlot):
         plot_radius = self.max_plot_dia / 2
         # scaling to be applied to calculated vectors
         scale = plot_radius / self.max_vector_radius
-        # how we calculate distance depends on the speed units in use
-        if self.speed_vec[1] == 'meter_per_second' or self.speed_vec[1] == 'meter_per_second':
-            factor = 1000.0
-        else:
-            factor = 3600.0
         # Unfortunately PIL does not allow us to work with layers so we need to
         # process our data twice; once to plot the 'trail' and a second time to
         # plot any markers
@@ -1503,13 +1496,13 @@ class PolarWindTrailPlot(PolarWindPlot):
                 # the period in sec the current speed applies to
                 delta = self.time_vec[0][i] - self.time_vec[0][i-1]
                 # the corresponding distance
-                dist = this_speed_vec * delta / factor
+                dist = this_speed_vec * delta / self.factor
                 # calculate new running vector from centre for this point
                 vec_x += dist * math.sin(math.radians((this_dir_vec + 180) % 360))
                 vec_y += dist * math.cos(math.radians((this_dir_vec + 180) % 360))
                 # scale the vector to our polar plot area
                 x = self.origin_x + vec_x * scale
-                y = self.origin_y - (vec_y * scale)
+                y = self.origin_y - vec_y * scale
                 # determine marker color to be used
                 marker_color = self.get_speed_color(self.marker_color,
                                                     this_speed_vec)
@@ -1526,29 +1519,29 @@ class PolarWindTrailPlot(PolarWindPlot):
         # for the first sample the previous point must be set to the origin
         last_x = self.origin_x
         last_y = self.origin_y
-        if self.dir_vec[0][0] is None:
+        if self.dir_vec.value[0] is None:
             last_a = 0
         else:
-            last_a = int((self.dir_vec[0][0] + 180) % 360)
+            last_a = int((self.dir_vec.value[0] + 180) % 360)
         last_r = 0
         # iterate over the samples, ignore the first since we don't know what
         # period (delta) it applies to
         for i in range(1, self.samples):
-            this_dir_vec = self.dir_vec[0][i]
-            this_speed_vec = self.speed_vec[0][i]
+            this_dir_vec = self.dir_vec.value[i]
+            this_speed_vec = self.speed_vec.value[i]
             # ignore any speeds that are 0 or None and any directions that are None
             if this_speed_vec is None or this_dir_vec is None or this_speed_vec == 0.0:
                 continue
             # the period in sec the current speed applies to
-            delta = self.time_vec[0][i] - self.time_vec[0][i-1]
+            delta = self.time_vec.value[i] - self.time_vec.value[i-1]
             # the corresponding distance
-            dist = this_speed_vec * delta / factor
+            dist = this_speed_vec * delta / self.factor
             # calculate new running vector from centre for this point
             vec_x += dist * math.sin(math.radians((this_dir_vec + 180) % 360))
             vec_y += dist * math.cos(math.radians((this_dir_vec + 180) % 360))
             # scale the vector to our polar plot area
             x = self.origin_x + vec_x * scale
-            y = self.origin_y - (vec_y * scale)
+            y = self.origin_y - vec_y * scale
             radius = math.sqrt(vec_x**2 + vec_y**2) * scale
             this_a = math.degrees(math.atan2(-vec_y, vec_x)) + 90.0
             # determine line color to be used
@@ -1559,19 +1552,19 @@ class PolarWindTrailPlot(PolarWindPlot):
                 vector = (int(last_x), int(last_y), int(x), int(y))
                 self.draw.line(vector, fill=line_color, width=self.line_width)
             elif self.line_type == "radial":
-                # TODO. Commented out line still required?
-                # self.joinCurve(lasta, lastr, lastx, lasty, thisa, line_color)
                 self.join_curve(last_x, last_y, last_r, last_a,
-                                x, y, radius, this_a, line_color, self.line_width)
+                                x, y, radius, this_a,
+                                line_color, self.line_width)
             last_x = x
             last_y = y
             last_a = this_a
             last_r = radius
         # That's the last sample done, now we draw final vector if required
-        # TODO. Is the following commented out line required?
-        # if self.vector_color != "none" :
-        vector = (int(self.origin_x), int(self.origin_y), int(x), int(y))
-        self.draw.line(vector, fill='red', width=self.line_width)
+        if self.vector_color is not None:
+            vector = (int(self.origin_x), int(self.origin_y), int(x), int(y))
+            self.draw.line(vector,
+                           fill=self.vector_color,
+                           width=self.line_width)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
@@ -1583,7 +1576,7 @@ class PolarWindTrailPlot(PolarWindPlot):
         being displayed for the ring concerned.
 
         Input:
-            ring: ring number for which a lalbel is required, will be from
+            ring: ring number for which a label is required, will be from
                   1 (inside) to 5 (outside) inclusive
 
         Returns:
@@ -1600,7 +1593,7 @@ class PolarWindTrailPlot(PolarWindPlot):
 
 
 class PolarWindSpiralPlot(PolarWindPlot):
-    """Specialise class to generate a spiral wind plot."""
+    """Specialised class to generate a spiral wind plot."""
 
     def __init__(self, skin_dict, plot_dict):
         """Initialise a PolarWindSpiralPlot object."""
@@ -1635,8 +1628,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # get axis label format
         self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
 
+        # initialise some properties for use later
         self.time_labels = None
-
         self.x = None
         self.y = None
         self.radius = None
@@ -1644,6 +1637,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
     def render(self, title):
         """Main entry point to generate a spiral polar wind plot."""
 
+        # TODO - make order of method calls consistent across all classes
         # get an Image object for our plot
         image = self.get_image()
         # get a Draw object on which to render the plot
@@ -1660,17 +1654,15 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.set_polar_grid()
         # setup the spiral plot
         self.set_plot()
-
         # render the title
         self.render_title()
         # render the legend
         self.render_legend()
-
         # render the polar grid
         self.render_polar_grid()
         # render the timestamp label
         self.render_timestamp()
-        # render the spial direction label
+        # render the spiral direction label
         self.render_spiral_direction_label()
         # finally render the plot
         self.render_plot()
@@ -1693,11 +1685,11 @@ class PolarWindSpiralPlot(PolarWindPlot):
             # sample number
             if self.centre == "newest":
                 # TODO. Legacy comment. 5 is magic number for # of rings
-                sample = int(round((self.samples - 1) * (5-n)/5))
+                sample = int(round((self.samples - 1) * (5 - n) / 5))
             else:
-                sample = int(round((self.samples - 1) * n/5))
+                sample = int(round((self.samples - 1) * n / 5))
             # get the sample ts as a datetime object
-            _dt = datetime.datetime.fromtimestamp(self.time_vec[0][sample])
+            _dt = datetime.datetime.fromtimestamp(self.time_vec.value[sample])
             # format the and save to our list of labels
             _label.append(_dt.strftime(self.axis_label).strip())
         self.time_labels = _label
@@ -1732,8 +1724,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
             start, stop, step = 0, self.samples, 1
         # iterate over the samples starting from the centre of the spiral
         for i in range(start, stop, step):
-            this_dir_vec = self.dir_vec[0][i]
-            this_speed_vec = self.speed_vec[0][i]
+            this_dir_vec = self.dir_vec.value[i]
+            this_speed_vec = self.speed_vec.value[i]
             # Calculate radius for this sample. Note assumes equal time periods
             # between samples
             #### TODO. Legacy comment. Handle case where self.samples==1
@@ -1768,8 +1760,6 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     vector = (int(last_x), int(last_y), int(self.x), int(self.y))
                     self.draw.line(vector, fill=line_color, width=self.line_width)
                 elif self.line_type == "radial":
-                    # TODO. Is the commented out line still required?
-                    # self.joinCurve(lasta, lastr, lastx, lasty, thisa, line_color)
                     self.join_curve(last_x, last_y, last_r, last_a,
                                     self.x, self.y, self.radius, this_a,
                                     line_color, self.line_width)
@@ -1783,8 +1773,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         if self.marker_type is not None:
             # iterate over the samples starting from the centre of the spiral
             for i in range(start, stop, step):
-                this_dir_vec = self.dir_vec[0][i]
-                this_speed_vec = self.speed_vec[0][i]
+                this_dir_vec = self.dir_vec.value[i]
+                this_speed_vec = self.speed_vec.value[i]
                 # Calculate radius for this sample. Note assumes equal time periods
                 # between samples
                 # TODO. Legacy comment. Handle case where self.samples==1
@@ -1808,8 +1798,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     # now draw the markers
                     self.render_marker(self.x, self.y, self.marker_size, self.marker_type, marker_color)
 
-
-def get_ring_label(self, ring):
+    def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
 
         Each polar plot ring is labelled, usually with a number followed by
@@ -1819,7 +1808,7 @@ def get_ring_label(self, ring):
         being displayed for the ring concerned.
 
         Input:
-            ring: ring number for which a lalbel is required, will be from
+            ring: ring number for which a label is required, will be from
                   1 (inside) to 5 (outside) inclusive
 
         Returns:
@@ -1829,7 +1818,7 @@ def get_ring_label(self, ring):
         return self.time_labels[ring]
 
     def render_spiral_direction_label(self):
-        """Render label indicating direction of the spiral"""
+        """Render label indicating direction of the spiral."""
 
         # the text depends on whether the newest or oldest samples are in the
         # center
@@ -1871,7 +1860,7 @@ def get_ring_label(self, ring):
 
 
 class PolarWindScatterPlot(PolarWindPlot):
-    """Specialise class to generate a windrose plot."""
+    """Specialised class to generate a windrose plot."""
 
     def __init__(self, skin_dict, plot_dict):
         """Initialise a PolarWindScatterPlot object."""
@@ -1886,21 +1875,10 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # Get line type, can be 'straight', 'spoke', 'radial' or 'none'. Default to 'straight'
         # get line_type, default to None
+        # TODO. This gives a default of no line, is that what we want?
         self.line_type = self.plot_dict.get('line_type')
         self.line_type = None if self.line_type == '' else self.line_type
-        # TODO. Can the following commented lines be deleted?
-        #_style = self.plot_dict.get('line_type', 'radial')
-        # we have a line type but is it one we know about
-        # if _style is not None and _style.lower() not in ['straight', 'spoke', 'radial', 'none', '']:
-            # # it's a line type I don't understand, set line_type to
-            # # 'radial' so that something is displayed then log it
-            # self.line_type = 'radial'
-            # logdbg("Unknown scatter plot line type '%s', using 'radial' instead" % (_style, ))
-        # else:
-            # # we have a valid line type so save it
-            # self.line_type = _style
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
         # Get line_color, can be 'age' or a valid color. Default to 'age'.
@@ -1928,6 +1906,7 @@ class PolarWindScatterPlot(PolarWindPlot):
         # get axis label format
         self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
 
+        # initialise some properties for use later
         self.ring_units = None
 
     def render(self, title):
@@ -1952,10 +1931,8 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.set_polar_grid()
         # setup the spiral plot
         self.set_plot()
-
         # render the title
         self.render_title()
-
         # render the polar grid
         self.render_polar_grid()
         # render the timestamp label
@@ -1969,15 +1946,15 @@ class PolarWindScatterPlot(PolarWindPlot):
         """Setup the scatter plot render.
 
         Perform any calculations or set any properties required to render the
-        polar trail plot.
+        polar scatter plot.
         """
 
         # set the location of the ring labels, in this case SE
 
-# TO DO make sensible choice
+        # TODO. Legacy comment. / Make sensible choice
         self.label_dir = 6
         # determine the 'unit' label to use on ring labels
-        self.ring_units = SPEED_LOOKUP[self.speed_vec[1]]
+        self.ring_units = SPEED_LOOKUP[self.speed_vec.unit]
 
     def render_plot(self):
         """Render the scatter plot data."""
@@ -1986,8 +1963,8 @@ class PolarWindScatterPlot(PolarWindPlot):
         plot_radius = self.max_plot_dia / 2
 
         # unfortunately PIL does not allow us to work with layers so we need to
-        # process our data twice; once to plot the 'trail' and a second time to
-        # plot any markers
+        # process our data twice; once to plot the scatter line and a second
+        # time to plot any markers
 
         # plot the scatter line if required
         if self.line_type is not None:
@@ -1996,8 +1973,8 @@ class PolarWindScatterPlot(PolarWindPlot):
             last_x = last_y = last_a = last_r = None
             # iterate over the samples
             for i in range(0, self.samples):
-                this_dir_vec = self.dir_vec[0][i]
-                this_speed_vec = self.speed_vec[0][i]
+                this_dir_vec = self.dir_vec.value[i]
+                this_speed_vec = self.speed_vec.value[i]
                 # we only plot if we have values for speed and dir
                 if this_speed_vec is not None and this_dir_vec is not None:
                     # calculate the 'radius' in pixels of the vector
@@ -2027,7 +2004,7 @@ class PolarWindScatterPlot(PolarWindPlot):
                         elif self.line_type == "spoke":
                             spoke = (self.origin_x, self.origin_y, x, y)
                             self.draw.line(spoke, fill=line_color, width=self.line_width)
-# TO DO last one should be default else
+                        # TODO. Legacy comment. Last one should be default else
                         elif self.line_type == "radial":
                             self.join_curve(last_x, last_y, last_r, last_a,
                                             x, y, radius, this_dir_vec,
@@ -2043,8 +2020,8 @@ class PolarWindScatterPlot(PolarWindPlot):
         if self.marker_type is not None:
             # iterate over the samples
             for i in range(0, self.samples):
-                this_dir_vec = self.dir_vec[0][i]
-                this_speed_vec = self.speed_vec[0][i]
+                this_dir_vec = self.dir_vec.value[i]
+                this_speed_vec = self.speed_vec.value[i]
                 # we only plot if we have values for speed and dir
                 if this_speed_vec is not None and this_dir_vec is not None:
                     # calculate the 'radius' in pixels of the vector
@@ -2061,7 +2038,8 @@ class PolarWindScatterPlot(PolarWindPlot):
                     else:
                         marker_color = self.line_color
                     # now draw the markers
-                    self.render_marker(x, y, self.marker_size, self.marker_type, marker_color)
+                    self.render_marker(x, y, self.marker_size,
+                                       self.marker_type, marker_color)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
@@ -2073,7 +2051,7 @@ class PolarWindScatterPlot(PolarWindPlot):
         being displayed for the ring concerned.
 
         Input:
-            ring: ring number for which a lalbel is required, will be from
+            ring: ring number for which a label is required, will be from
                   1 (inside) to 5 (outside) inclusive
 
         Returns:
@@ -2089,6 +2067,7 @@ class PolarWindScatterPlot(PolarWindPlot):
 # =============================================================================
 
 
+# TODO. Which one do we keep, parse-color or parse_color2 ?
 def parse_color(color, default):
     """Parse a string representing a color.
 
@@ -2100,7 +2079,7 @@ def parse_color(color, default):
 
     Inputs:
         color:   the string to be parsed
-        default: the default value if color cannot be aprsed to a valid colour
+        default: the default value if color cannot be parsed to a valid colour
 
     Returns:
         a valid rgb tuple or the value None
