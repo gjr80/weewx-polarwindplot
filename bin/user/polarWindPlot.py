@@ -383,18 +383,22 @@ class PolarWindPlot(object):
         self.plot_dict = plot_dict
 
         # Set image attributes
-        self.image_width = int(self.plot_dict['image_width'])
-        self.image_height = int(self.plot_dict['image_height'])
-        self.image_back_box_color = int(self.plot_dict['image_background_box_color'], 0)
-        self.image_back_circle_color = int(self.plot_dict['image_background_circle_color'], 0)
-        self.image_back_range_ring_color = int(self.plot_dict['image_background_range_ring_color'], 0)
-        self.image_back_image = self.plot_dict['image_background_image']
+        self.image_width = int(self.plot_dict.get('image_width'))
+        self.image_height = int(self.plot_dict.get('image_height'))
+        _image_back_box_color = self.plot_dict.get('image_background_box_color')
+        self.image_back_box_color = parse_color(_image_back_box_color, '#96C6F5')
+        _image_back_circle_color = self.plot_dict.get('image_background_circle_color')
+        self.image_back_circle_color = parse_color(_image_back_circle_color, '#F5F5F5')
+        _image_back_range_ring_color = self.plot_dict.get('image_background_range_ring_color')
+        self.image_back_range_ring_color = parse_color(_image_back_range_ring_color, '#DDD9C3')
+        self.image_back_image = self.plot_dict.get('image_background_image')
 
         # plot attributes
-        self.plot_border = int(self.plot_dict['plot_border'])
-        self.font_path = self.plot_dict['font_path']
-        self.plot_font_size = int(self.plot_dict['plot_font_size'])
-        self.plot_font_color = int(self.plot_dict['plot_font_color'], 0)
+        self.plot_border = int(self.plot_dict.get('plot_border', 5))
+        self.font_path = self.plot_dict.get('font_path')
+        self.plot_font_size = int(self.plot_dict.get('plot_font_size', 10))
+        _plot_font_color = self.plot_dict.get('plot_font_color')
+        self.plot_font_color = parse_color(_plot_font_color, '#000000')
         # colours to be used in the plot
         _colors = option_as_list(self.plot_dict.get('plot_colors',
                                                     DEFAULT_PLOT_COLORS))
@@ -415,14 +419,16 @@ class PolarWindPlot(object):
 
         # legend attributes
         self.legend = False
-        self.legend_bar_width = int(self.plot_dict['legend_bar_width'])
-        self.legend_font_size = int(self.plot_dict['legend_font_size'])
-        self.legend_font_color = int(self.plot_dict['legend_font_color'], 0)
+        self.legend_bar_width = int(self.plot_dict.get('legend_bar_width', 10))
+        self.legend_font_size = int(self.plot_dict.get('legend_font_size', 10))
+        _legend_font_color = self.plot_dict.get('legend_font_color')
+        self.legend_font_color  = parse_color(_legend_font_color, '#000000')
         self.legend_width = 0
 
         # title/plot label attributes
-        self.label_font_size = int(self.plot_dict['label_font_size'])
-        self.label_font_color = int(self.plot_dict['label_font_color'], 0)
+        self.label_font_size = int(self.plot_dict.get('label_font_size', 12))
+        _label_font_color = self.plot_dict.get('label_font_color')
+        self.label_font_color = parse_color(_label_font_color, '#000000')
 
         # compass point abbreviations
         compass = option_as_list(skin_dict['Labels'].get('compass_points',
@@ -880,12 +886,15 @@ class PolarWindPlot(object):
     def get_image(self):
         """Get an image object on which to render the plot."""
 
-        try:
+        if self.image_back_image is None:
+            try:
+                _image = Image.open(self.image_back_image)
+            except (IOError, AttributeError):
+                _image = Image.new("RGB",
+                                   (self.image_width, self.image_height),
+                                   self.image_back_box_color)
+        else:
             _image = Image.open(self.image_back_image)
-        except IOError:
-            _image = Image.new("RGB",
-                               (self.image_width, self.image_height),
-                               self.image_back_box_color)
         return _image
 
     def get_font_handles(self):
@@ -1118,10 +1127,10 @@ class PolarWindRosePlot(PolarWindPlot):
         self.render_legend()
         # render the polar grid
         self.render_polar_grid(bullseye=self.bullseye)
-        # render the plot
-        self.render_plot()
-        # finally render the plot timestamp
+        # render the timestamp label
         self.render_timestamp()
+        # finally render the plot
+        self.render_plot()
         # return the completed plot image
         return image
 
@@ -1391,10 +1400,10 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.render_legend()
         # render the polar grid
         self.render_polar_grid()
-        # render the plot
-        self.render_plot()
-        # finally render the timestamp
+        # render the timestamp
         self.render_timestamp()
+        # finally render the plot
+        self.render_plot()
         # return the completed plot image
         return image
 
@@ -1637,7 +1646,6 @@ class PolarWindSpiralPlot(PolarWindPlot):
     def render(self, title):
         """Main entry point to generate a spiral polar wind plot."""
 
-        # TODO - make order of method calls consistent across all classes
         # get an Image object for our plot
         image = self.get_image()
         # get a Draw object on which to render the plot
@@ -1728,9 +1736,9 @@ class PolarWindSpiralPlot(PolarWindPlot):
             this_speed_vec = self.speed_vec.value[i]
             # Calculate radius for this sample. Note assumes equal time periods
             # between samples
-            #### TODO. Legacy comment. Handle case where self.samples==1
-            #### TODO. Legacy comment. Actually radius should be a function of time, this will then cope with nones/gaps and short set of samples
-            #### TODO. Legacy comment. NOTE2GR You modified my outer for loop, but we still need the if below to calculate radius correctly
+            # TODO. Legacy comment. Handle case where self.samples==1
+            # TODO. Legacy comment. Actually radius should be a function of time, this will then cope with nones/gaps and short set of samples
+            # TODO. Legacy comment. NOTE2GR You modified my outer for loop, but we still need the if below to calculate radius correctly
             if self.centre == "newest":
                 i2 = self.samples - 1 - i
             else:
@@ -1920,13 +1928,6 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.get_font_handles()
         # setup the plot title
         self.set_title(title)
-        # FIXME. Legacy comment. This needs to be fixed, Should not render until setup complete
-#        if self.title:
-#            width, height = self.draw.textsize(self.title, font=self.label_font)
-#            self.title_height = height
-#        else:
-#            self.title_height = 0
-
         # set up the background polar grid
         self.set_polar_grid()
         # setup the spiral plot
