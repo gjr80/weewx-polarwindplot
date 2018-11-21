@@ -300,7 +300,7 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
         # if we made it here we don't know about the specified plot so raise
         raise weewx.UnsupportedFeature('Unsupported polar wind plot type: %s' % plot_type)
 
-    def skipThisPlot(self, ts, img_file, plotname):
+    def skipThisPlot(self, ts, img_file, plot_name):
         """Determine whether the plot is to be skipped or not.
 
         Successive report cyles will likely produce a windrose that,
@@ -330,18 +330,18 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
         Input Parameters:
 
             img_file: full path and filename of plot file
-            plotname: name of plot
+            plot_name: name of plot
 
         Returns:
             True if plot is to be generated, False if plot is to be skipped.
         """
-### For testing only, delete before release
+        # TODO. Remove following line (return False) before release
         return False
 
         # Images without a period must be skipped every time and a syslog
         # entry added. This should never occur, but....
         if self.period is None:
-            loginf("Plot '%s' ignored, no period specified" % plotname)
+            loginf("Plot '%s' ignored, no period specified" % plot_name)
             return True
 
         # The image definitely has to be generated if it doesn't exist.
@@ -423,7 +423,8 @@ class PolarWindPlot(object):
                     break
 
         # legend attributes
-        self.legend = False
+        # do we display a legend, default to True
+        self.legend = tobool(self.plot_dict.get('legend', True))
         self.legend_bar_width = int(self.plot_dict.get('legend_bar_width', 10))
         self.legend_font_size = int(self.plot_dict.get('legend_font_size', 10))
         _legend_font_color = self.plot_dict.get('legend_font_color')
@@ -628,108 +629,110 @@ class PolarWindPlot(object):
     def render_legend(self):
         """Render a polar plot legend."""
 
-        # org_x and org_y = x,y coords of bottom left of legend stacked bar,
-        # everything else is relative to this point
+        # do we need to render a legend?
+        if self.legend:
+            # org_x and org_y = x,y coords of bottom left of legend stacked bar,
+            # everything else is relative to this point
 
-        # first get the space required between the polar plot and the legend
-        _width, _height = self.draw.textsize('E', font=self.plot_font)
-        org_x = self.origin_x + self.max_plot_dia / 2 + _width + 10
-        org_y = self.origin_y + self.max_plot_dia / 2 - self.max_plot_dia / 22
-        # bulb diameter
-        bulb_d = int(round(1.2 * self.legend_bar_width, 0))
-        # draw stacked bar and label with values
-        for i in range(6, 0, -1):
-            # draw the rectangle for the stacked bar
-            x0 = org_x
-            y0 = org_y - (0.85 * self.max_plot_dia * self.speed_factors[i])
-            x1 = org_x + self.legend_bar_width
-            y1 = org_y
-            self.draw.rectangle([(x0, y0), (x1, y1)],
-                                fill=self.plot_colors[i],
-                                outline='black')
-            # add the label
-            # first, position the label
-            label_width, label_height = self.draw.textsize(str(self.speed_list[i]),
-                                                           font=self.legend_font)
+            # first get the space required between the polar plot and the legend
+            _width, _height = self.draw.textsize('E', font=self.plot_font)
+            org_x = self.origin_x + self.max_plot_dia / 2 + _width + 10
+            org_y = self.origin_y + self.max_plot_dia / 2 - self.max_plot_dia / 22
+            # bulb diameter
+            bulb_d = int(round(1.2 * self.legend_bar_width, 0))
+            # draw stacked bar and label with values
+            for i in range(6, 0, -1):
+                # draw the rectangle for the stacked bar
+                x0 = org_x
+                y0 = org_y - (0.85 * self.max_plot_dia * self.speed_factors[i])
+                x1 = org_x + self.legend_bar_width
+                y1 = org_y
+                self.draw.rectangle([(x0, y0), (x1, y1)],
+                                    fill=self.plot_colors[i],
+                                    outline='black')
+                # add the label
+                # first, position the label
+                label_width, label_height = self.draw.textsize(str(self.speed_list[i]),
+                                                               font=self.legend_font)
+                x = org_x + 1.5 * self.legend_bar_width
+                y = org_y - label_height / 2 - (0.85 * self.max_plot_dia * self.speed_factors[i])
+                # get the basic label text
+                snippets = (str(int(round(self.speed_list[i], 0))), )
+                # if required add a bracketed percentage
+                if self.legend_percentage:
+                    snippets += (' (',
+                                 str(int(round(100 * self.speed_bin[i]/sum(self.speed_bin), 0))),
+                                 '%)')
+                # create the final label text
+                text = ''.join(snippets)
+                # render the label text
+                self.draw.text((x, y),
+                               text,
+                               fill=self.legend_font_color,
+                               font=self.legend_font)
+
+            # draw 'Calm' label and '0' speed label/percentage
+            # position the 'Calm' label
+            t_width, t_height = self.draw.textsize('Calm', font=self.legend_font)
+            x = org_x - t_width - 2
+            y = org_y - t_height / 2 - (0.85 * self.max_plot_dia * self.speed_factors[0])
+            # render the 'Calm' label
+            self.draw.text((x, y),
+                           'Calm',
+                           fill=self.legend_font_color,
+                           font=self.legend_font)
+            # position the '0' speed label/percentage
+            t_width, t_height = self.draw.textsize(str(self.speed_list[0]),
+                                                   font=self.legend_font)
             x = org_x + 1.5 * self.legend_bar_width
-            y = org_y - label_height / 2 - (0.85 * self.max_plot_dia * self.speed_factors[i])
+            y = org_y - t_height / 2 - (0.85 * self.max_plot_dia * self.speed_factors[0])
             # get the basic label text
-            snippets = (str(int(round(self.speed_list[i], 0))), )
+            snippets = (str(int(self.speed_list[0])), )
             # if required add a bracketed percentage
             if self.legend_percentage:
                 snippets += (' (',
-                             str(int(round(100 * self.speed_bin[i]/sum(self.speed_bin), 0))),
+                             str(int(round(100.0 * self.speed_bin[0] / sum(self.speed_bin), 0))),
                              '%)')
             # create the final label text
             text = ''.join(snippets)
-            # render the label text
+            # render the label
             self.draw.text((x, y),
                            text,
                            fill=self.legend_font_color,
                            font=self.legend_font)
 
-        # draw 'Calm' label and '0' speed label/percentage
-        # position the 'Calm' label
-        t_width, t_height = self.draw.textsize('Calm', font=self.legend_font)
-        x = org_x - t_width - 2
-        y = org_y - t_height / 2 - (0.85 * self.max_plot_dia * self.speed_factors[0])
-        # render the 'Calm' label
-        self.draw.text((x, y),
-                       'Calm',
-                       fill=self.legend_font_color,
-                       font=self.legend_font)
-        # position the '0' speed label/percentage
-        t_width, t_height = self.draw.textsize(str(self.speed_list[0]),
-                                               font=self.legend_font)
-        x = org_x + 1.5 * self.legend_bar_width
-        y = org_y - t_height / 2 - (0.85 * self.max_plot_dia * self.speed_factors[0])
-        # get the basic label text
-        snippets = (str(int(self.speed_list[0])), )
-        # if required add a bracketed percentage
-        if self.legend_percentage:
-            snippets += (' (',
-                         str(int(round(100.0 * self.speed_bin[0] / sum(self.speed_bin), 0))),
-                         '%)')
-        # create the final label text
-        text = ''.join(snippets)
-        # render the label
-        self.draw.text((x, y),
-                       text,
-                       fill=self.legend_font_color,
-                       font=self.legend_font)
+            # draw 'calm' bulb on bottom of stacked bar
+            bounding_box = (org_x - bulb_d / 2 + self.legend_bar_width / 2,
+                            org_y - self.legend_bar_width / 6,
+                            org_x + bulb_d / 2 + self.legend_bar_width / 2,
+                            org_y - self.legend_bar_width / 6 + bulb_d)
+            self.draw.ellipse(bounding_box, outline='black',
+                              fill=self.plot_colors[0])
 
-        # draw 'calm' bulb on bottom of stacked bar
-        bounding_box = (org_x - bulb_d / 2 + self.legend_bar_width / 2,
-                        org_y - self.legend_bar_width / 6,
-                        org_x + bulb_d / 2 + self.legend_bar_width / 2,
-                        org_y - self.legend_bar_width / 6 + bulb_d)
-        self.draw.ellipse(bounding_box, outline='black',
-                          fill=self.plot_colors[0])
+            # draw legend title
+            # position the legend title
+            t_width, t_height = self.draw.textsize(self.legend_title,
+                                                   font=self.legend_font)
+            x = org_x + self.legend_bar_width / 2 - t_width / 2
+            y = org_y - 5 * t_height / 2 - (0.85 * self.max_plot_dia)
+            # render the title
+            self.draw.text((x, y),
+                           self.legend_title,
+                           fill=self.legend_font_color,
+                           font=self.legend_font)
 
-        # draw legend title
-        # position the legend title
-        t_width, t_height = self.draw.textsize(self.legend_title,
-                                               font=self.legend_font)
-        x = org_x + self.legend_bar_width / 2 - t_width / 2
-        y = org_y - 5 * t_height / 2 - (0.85 * self.max_plot_dia)
-        # render the title
-        self.draw.text((x, y),
-                       self.legend_title,
-                       fill=self.legend_font_color,
-                       font=self.legend_font)
-
-        # draw legend units label
-        # position the units label
-        t_width, t_height = self.draw.textsize('(' + self.units + ')',
-                                               font=self.legend_font)
-        x = org_x + self.legend_bar_width / 2 - t_width / 2
-        y = org_y - 3 * t_height / 2 - (0.85 * self.max_plot_dia)
-        text = ''.join(('(', self.units, ')'))
-        # render the units label
-        self.draw.text((x, y),
-                       text,
-                       fill=self.legend_font_color,
-                       font=self.legend_font)
+            # draw legend units label
+            # position the units label
+            t_width, t_height = self.draw.textsize('(' + self.units + ')',
+                                                   font=self.legend_font)
+            x = org_x + self.legend_bar_width / 2 - t_width / 2
+            y = org_y - 3 * t_height / 2 - (0.85 * self.max_plot_dia)
+            text = ''.join(('(', self.units, ')'))
+            # render the units label
+            self.draw.text((x, y),
+                           text,
+                           fill=self.legend_font_color,
+                           font=self.legend_font)
 
     def render_polar_grid(self, bullseye=0):
         """Render polar plot grid.
@@ -911,22 +914,18 @@ class PolarWindPlot(object):
         """Resize an image given one or more target dimensions"""
 
         (w, h) = image.size
-        if tw is not None and th is not None:
-            # scale in both width and height
-            return image.resize((tw, th))
-        elif tw is None and th is None:
+        if tw is None and th is None:
             # no target sizes so leave as is
             return image
-        elif tw is not None:
-            # scale in width only
+        elif th is None:
+            # scale by width only
             # we will keep the aspect ratio so need to calc a target height
             th = h * float(tw/w)
-            return image.resize((tw, th))
-        else:
-            # scale in height only
+        elif tw is None:
+            # scale by height only
             # we will keep the aspect ratio so need to calc a target width
             tw = w * float(th/h)
-            return image.resize((tw, th))
+        return image.resize((tw, th), resample=self.resample_filter)
 
     def get_font_handles(self):
         """Get font handles for the fonts to be used."""
@@ -1100,6 +1099,7 @@ class PolarWindPlot(object):
 
 class PolarWindRosePlot(PolarWindPlot):
     """Specialised class to generate a polar wind rose plot."""
+    # TODO: Post-implementation review of petals/petal width code as per Issue #34
 
     def __init__(self, skin_dict, plot_dict):
         """Initialise a PolarWindRosePlot object."""
@@ -1107,8 +1107,6 @@ class PolarWindRosePlot(PolarWindPlot):
         # initialise my superclass
         super(PolarWindRosePlot, self).__init__(skin_dict, plot_dict)
 
-        # do we display a legend, default to True
-        self.legend = tobool(self.plot_dict.get('legend', True))
         # get petal width, if not defined then use the default
         self.petals = int(self.plot_dict.get('petals', DEFAULT_NO_PETALS))
         if self.petals < 2 or self.petals > 360:
@@ -1364,8 +1362,6 @@ class PolarWindTrailPlot(PolarWindPlot):
         # initialise my superclass
         super(PolarWindTrailPlot, self).__init__(skin_dict, plot_dict)
 
-        # do we display a legend, default to True
-        self.legend = tobool(self.plot_dict.get('legend', True))
         # get marker_type, default to None
         _marker_type = self.plot_dict.get('marker_type')
         self.marker_type = None if _marker_type == '' else _marker_type
@@ -1641,8 +1637,6 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # initialise my superclass
         super(PolarWindSpiralPlot, self).__init__(skin_dict, plot_dict)
 
-        # do we display a legend, default to True
-        self.legend = tobool(self.plot_dict.get('legend', True))
         # Display oldest or newest data at centre? Default to oldest.
         self.centre = self.plot_dict.get('centre', 'oldest')
 
