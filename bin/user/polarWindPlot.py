@@ -392,6 +392,11 @@ class PolarWindPlot(object):
         _image_back_range_ring_color = self.plot_dict.get('image_background_range_ring_color')
         self.image_back_range_ring_color = parse_color(_image_back_range_ring_color, '#DDD9C3')
         self.image_back_image = self.plot_dict.get('image_background_image')
+        _resample_filter = self.plot_dict.get('resample_filter', 'NEAREST').upper()
+        try:
+            self.resample_filter = getattr(Image, _resample_filter)
+        except AttributeError:
+            self.resample_filter = Image.NEAREST
 
         # plot attributes
         self.plot_border = int(self.plot_dict.get('plot_border', 5))
@@ -887,15 +892,41 @@ class PolarWindPlot(object):
         """Get an image object on which to render the plot."""
 
         if self.image_back_image is None:
+            _image = Image.new("RGB",
+                               (self.image_width, self.image_height),
+                               self.image_back_box_color)
+        else:
             try:
-                _image = Image.open(self.image_back_image)
+                _b_image = Image.open(self.image_back_image)
+                _image = self.resize_image(_b_image,
+                                           self.image_width,
+                                           self.image_height)
             except (IOError, AttributeError):
                 _image = Image.new("RGB",
                                    (self.image_width, self.image_height),
                                    self.image_back_box_color)
-        else:
-            _image = Image.open(self.image_back_image)
         return _image
+
+    def resize_image(self, image, tw, th):
+        """Resize an image given one or more target dimensions"""
+
+        (w, h) = image.size
+        if tw is not None and th is not None:
+            # scale in both width and height
+            return image.resize((tw, th))
+        elif tw is None and th is None:
+            # no target sizes so leave as is
+            return image
+        elif tw is not None:
+            # scale in width only
+            # we will keep the aspect ratio so need to calc a target height
+            th = h * float(tw/w)
+            return image.resize((tw, th))
+        else:
+            # scale in height only
+            # we will keep the aspect ratio so need to calc a target width
+            tw = w * float(th/h)
+            return image.resize((tw, th))
 
     def get_font_handles(self):
         """Get font handles for the fonts to be used."""
