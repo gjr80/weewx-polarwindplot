@@ -61,7 +61,7 @@ import weewx.reportengine
 
 from weeplot.utilities import get_font_handle
 from weeutil.weeutil import accumulateLeaves, option_as_list, TimeSpan, tobool, to_unicode
-from weewx.units import Converter
+from weewx.units import ValueTuple
 
 POLAR_WIND_PLOT_VERSION = '0.1.0'
 
@@ -85,6 +85,8 @@ SPEED_LOOKUP = {'km_per_hour': 'km/h',
                 'mile_per_hour': 'mph',
                 'meter_per_second': 'm/s',
                 'knot': 'kn'}
+
+DEGREE_SYMBOL = u'\N{DEGREE SIGN}'
 
 
 def logmsg(lvl, msg):
@@ -194,9 +196,16 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                     plotgen_ts = self.dbmanager.lastGoodStamp()
                     if not plotgen_ts:
                         plotgen_ts = time.time()
+
+                # set the plot timestamp
+                plot_obj.timestamp = plotgen_ts
+
                 # get the period for the plot, default to 24 hours if no period
                 # set
                 self.period = int(plot_options.get('period', 86400))
+
+                # give the polar wind plot object a formatter to use
+                plot_obj.formatter = self.formatter
 
                 # get the path of the image file we will save
                 image_root = os.path.join(self.config_dict['WEEWX_ROOT'],
@@ -226,9 +235,6 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
 
                     # accumulate options from parent nodes
                     source_options = accumulateLeaves(self.polar_dict[span][plot][source])
-
-                    # set timestamp
-                    plot_obj.set_timestamp(plotgen_ts, source_options)
 
                     # Get plot title if explicitly requested, default to no
                     # title. Config option 'label' used for consistency with
@@ -455,6 +461,17 @@ class PolarWindPlot(object):
         # setup a list with speed range boundaries
         self.speed_list = []
 
+        # get the timestamp format, use a sane default that should display
+        # sensibly for all locales
+        self.timestamp_format = self.plot_dict.get('time_stamp', '%x %X')
+        # get the timestamp location
+        _ts_loc = set(self.plot_dict.get('time_stamp_location', {}))
+        if not _ts_loc & {'top', 'bottom'}:
+            _ts_loc.add('bottom')
+        if not _ts_loc & {'left', 'centre', 'center', 'right'}:
+            _ts_loc.add('right')
+        self.timestamp_location = _ts_loc
+
         # initialise a number of properties to be used later
         self.speed_field = None
         self.max_speed_range = None
@@ -467,10 +484,6 @@ class PolarWindPlot(object):
         self.title = None
         self.title_width = None
         self.title_height = None
-
-        self.timestamp = None
-        self.timestamp_format = None
-        self.timestamp_location = None
 
         self.max_plot_dia = None
         self.origin_x = None
@@ -547,25 +560,6 @@ class PolarWindPlot(object):
         else:
             self.title_width = 0
             self.title_height = 0
-
-    def set_timestamp(self, ts, options):
-        """Set the timestamp to be displayed on the plot.
-
-        Set the format and location of the timestamp to be displayed on the
-        plot.
-
-        Inputs:
-            ts:      the timestamp to be displayed on th eplot
-            options: a 'source' plot options dict
-        """
-
-        # set the actual timestamp to be used
-        self.timestamp = ts
-        # get the timestamp format, use a sane default that should display
-        # sensibly for all locales
-        self.timestamp_format = options.get('time_stamp', '%x %X')
-        # get the timestamp location, if not set then don't display at all
-        self.timestamp_location = options.get('time_stamp_location')
 
     def set_polar_grid(self):
         """Setup the polar plot grid.
@@ -1397,10 +1391,30 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.end_point_color = parse_color(self.plot_dict.get('end_point_color', None),
                                            None)
 
+        # get the vector location
+        _vec_loc = set(self.plot_dict.get('vector_location', {}))
+        _v_align = _vec_loc & {'top', 'bottom'}
+        if not _v_align:
+            _v_align = {'bottom'}
+        _h_align = _vec_loc & {'left', 'centre', 'center', 'right'}
+        if not _h_align:
+            if self.timestamp_location & {'left'}:
+                _h_align = {'right'}
+            else:
+                _h_align = {'left'}
+        elif _vec_loc & {'left'} and self.timestamp_location & {'left'}:
+            _h_align = {'right'}
+        elif _vec_loc & {'right'} and self.timestamp_location & {'right'}:
+            _h_align = {'left'}
+        self.vector_location = _v_align | _h_align
+#        loginf("self.timestamp_location=%s self.vector_location=%s" % (self.timestamp_location, self.vector_location))
+
         # set some properties to startup defaults
         self.max_vector_radius = None
         self.ring_units = None
         self.factor = None
+        self.vector_x = None
+        self.vector_y = None
 
     def render(self, title):
         """Main entry point to generate a polar wind trail plot."""
@@ -1429,6 +1443,8 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.render_polar_grid()
         # render the timestamp
         self.render_timestamp()
+        # render the overall windrun vector text
+        self.render_vector()
         # finally render the plot
         self.render_plot()
         # return the completed plot image
@@ -1472,6 +1488,9 @@ class PolarWindTrailPlot(PolarWindPlot):
             vec_radius = math.sqrt(vec_x**2 + vec_y**2)
             if vec_radius > self.max_vector_radius:
                 self.max_vector_radius = vec_radius
+        # store the resulting x and y components for an overall vector statement
+        self.vector_x = vec_x
+        self.vector_y = vec_y
 
         # Find which direction from the bullseye to use to display ring range
         # labels - look for one that is relatively clear. Only consider NE,
@@ -1601,6 +1620,56 @@ class PolarWindTrailPlot(PolarWindPlot):
             self.draw.line(vector,
                            fill=self.vector_color,
                            width=self.line_width)
+
+    def render_vector(self):
+        """Render a statement of the net plotted windrun vector."""
+
+        # obtain the net windrun vector magnitude and direction
+        _mag = int(round(math.sqrt(self.vector_x**2 + self.vector_y**2),
+                         0))
+        # we need to do a little translation to map from PIL vector coords to
+        # compass vector coords
+        _dir = round(math.degrees(math.atan2(self.vector_x, self.vector_y)),
+                     0)
+        _dir = int(_dir) if _dir >= 0 else int(_dir + 360)
+        # convert to a ValueTuple and use our formatter to get the correct
+        # ordinal direction
+        _dir_vt = ValueTuple(_dir, 'degree_compass', 'group_direction')
+        _ord_dir = self.formatter.to_ordinal_compass(_dir_vt)
+        # construct the text
+        _vector_text = "Net windrun %s%s from %s%s(%s)" % (_mag,
+                                                           self.ring_units,
+                                                           _dir,
+                                                           DEGREE_SYMBOL,
+                                                           _ord_dir)
+        # determine the size
+        _width, _height = self.draw.textsize(_vector_text,
+                                             font=self.label_font)
+
+        # now find the location we are to use, we should already be
+        # deconflicted with the timestamp location
+        if 'top' in self.vector_location:
+            y = self.plot_border + _height
+        else:
+            y = self.image_height - self.plot_border - _height
+        if 'left' in self.vector_location:
+            x = self.plot_border
+        elif ('center' in self.vector_location) or ('centre' in self.vector_location):
+            x = self.origin_x - _width / 2
+        else:
+            x = self.image_width - self.plot_border - _width
+        # draw our text, be prepared to catch a unicode encode error
+        try:
+            self.draw.text((x, y),
+                           _vector_text,
+                           fill=self.label_font_color,
+                           font=self.label_font)
+
+        except UnicodeEncodeError:
+            self.draw.text((x, y),
+                           _vector_text.encode("utf-8"),
+                           fill=self.label_font_color,
+                           font=self.label_font)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
