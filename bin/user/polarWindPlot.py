@@ -43,6 +43,8 @@ Various parameters including the plot type, period, source data field, units
 of measure and colours can be controlled by the user through various
 configuration options similar to other image generators.
 """
+# TODO: Testing. Test trail plot net vector positioning for various timestamp positions
+# TODO: Testing. Test use of data_binding config option
 
 import datetime
 import math
@@ -137,12 +139,6 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                                                      stn_info,
                                                      record)
 
-        # TODO need to support user specified binding not just the StdArchive one
-        # get a db manager for our archive
-        _binding = self.config_dict['StdArchive'].get('data_binding',
-                                                      'wx_binding')
-        self.dbmanager = self.db_binder.get_manager(_binding)
-
         # get the config options for our plots
         self.polar_dict = self.skin_dict['PolarWindPlotGenerator']
         # get the formatter and converter to be used
@@ -193,7 +189,9 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                 # good archive time stamp and then finally current time
                 plotgen_ts = gen_ts
                 if not plotgen_ts:
-                    plotgen_ts = self.dbmanager.lastGoodStamp()
+                    binding = plot_options['data_binding']
+                    dbmanager = self.db_binder.get_manager(binding)
+                    plotgen_ts = dbmanager.lastGoodStamp()
                     if not plotgen_ts:
                         plotgen_ts = time.time()
 
@@ -255,10 +253,10 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                         dir_field = 'windDir'
                     # hit the archive to get speed and direction plot data
                     t_span = TimeSpan(plotgen_ts - self.period + 1, plotgen_ts)
-                    (_, sp_t_vec, sp_vec_raw) = self.dbmanager.getSqlVectors(t_span,
-                                                                             sp_field)
-                    (_, dir_t_vec, dir_vec) = self.dbmanager.getSqlVectors(t_span,
-                                                                           dir_field)
+                    (_, sp_t_vec, sp_vec_raw) = dbmanager.getSqlVectors(t_span,
+                                                                        sp_field)
+                    (_, dir_t_vec, dir_vec) = dbmanager.getSqlVectors(t_span,
+                                                                      dir_field)
                     # convert the speed values to the units to be used in the
                     # plot
                     speed_vec = self.converter.convert(sp_vec_raw)
