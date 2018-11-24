@@ -1730,7 +1730,6 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
 
         # initialise some properties for use later
-        self.time_labels = None
         self.x = None
         self.y = None
         self.radius = None
@@ -1776,33 +1775,12 @@ class PolarWindSpiralPlot(PolarWindPlot):
         polar spiral plot.
         """
 
-        # TODO. Legacy comment. Setting time_labels probably belongs in set_polar_grid but we do not define our own set_polar_grid
-        # calculate which samples will fall on the circular axis marks and
-        # extract their timestamps
-        _label = []
-        # TODO. Legacy comment. 6 is a magic number for # of rings
-        for n in range(6):
-            # sample number
-            if self.centre == "newest":
-                # TODO. Legacy comment. 5 is magic number for # of rings
-                sample = int(round((self.samples - 1) * (5 - n) / 5))
-            else:
-                sample = int(round((self.samples - 1) * n / 5))
-            # get the sample ts as a datetime object
-            _dt = datetime.datetime.fromtimestamp(self.time_vec.value[sample])
-            # format the and save to our list of labels
-            _label.append(_dt.strftime(self.axis_label).strip())
-        self.time_labels = _label
-
         # set the location of the ring labels, in this case SE
-        # TODO. Legacy comment. Make sensible choice
+        # TODO. Legacy comment. Make a sensible choice rather than an arbitrary one
         self.label_dir = 6
 
     def render_plot(self):
         """Render the spiral plot data."""
-
-        # set the location of the ring labels, in this case SE
-        self.label_dir = 6
 
         # radius of plot area in pixels
         plot_radius = self.max_plot_dia / 2
@@ -1915,7 +1893,17 @@ class PolarWindSpiralPlot(PolarWindPlot):
             label text for the given ring number
         """
 
-        return self.time_labels[ring]
+        # determine which sample will fall on the specified ring and extract
+        # its timestamp
+        if self.centre == "newest":
+            # TODO. Legacy comment. 5 is magic number for # of rings
+            sample = int(round((self.samples - 1) * (5 - ring) / 5))
+        else:
+            sample = int(round((self.samples - 1) * ring / 5))
+        # get the sample ts as a datetime object
+        _dt = datetime.datetime.fromtimestamp(self.time_vec.value[sample])
+        # return the formatted time
+        return _dt.strftime(self.axis_label).strip()
 
     def render_spiral_direction_label(self):
         """Render label indicating direction of the spiral."""
@@ -1924,10 +1912,10 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # center
         if self.centre == "newest":
             # newest in the center
-            _label_text = "Newest in Center " + self.time_labels[0]
+            _label_text = "Newest in Center " + self.get_ring_label(0)
         else:
             # oldest in the center, include the date of the oldest
-            _label_text = "Oldest in Center " + self.time_labels[0]
+            _label_text = "Oldest in Center " + self.get_ring_label(0)
         # get the size of the label
         width, height = self.draw.textsize(_label_text, font=self.label_font)
         # TODO. Legacy comment. Does this conflict with the location of the timestamp?
