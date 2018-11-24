@@ -939,13 +939,13 @@ class PolarWindPlot(object):
 
         Each polar plot ring is labelled. This label can be a percentage, a
         value or some other text. The get_ring_label() method returns the label
-        to be used on a given ring. There are 5 equally spaced rings numbered
-        from 1 (inside) to 5 (outside). A value of None will result in no label
+        to be used on a given ring. Rings are equally spaced and numbered from 1
+        (inside) to outside. A value of None will result in no label
         being displayed for the ring concerned.
 
         Input:
             ring: ring number for which a label is required, will be from
-                  1 (inside) to 5 (outside) inclusive
+                  1 to the number of rings used inclusive
 
         Returns:
             label text for the given ring number
@@ -1318,15 +1318,15 @@ class PolarWindRosePlot(PolarWindPlot):
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
 
-        Each polar plot ring is labelled, usually with a number followed by
-        unit string. The get_ring_label() method returns the label to be used
-        on a given ring. There are 5 equally spaced rings numbered from
-        1 (inside) to 5 (outside). A value of None will result in no label
+        Each polar plot ring is labelled. This label can be a percentage, a
+        value or some other text. The get_ring_label() method returns the label
+        to be used on a given ring. Rings are equally spaced and numbered from 1
+        (inside) to outside. A value of None will result in no label
         being displayed for the ring concerned.
 
         Input:
             ring: ring number for which a label is required, will be from
-                  1 (inside) to 5 (outside) inclusive
+                  1 to the number of rings used inclusive
 
         Returns:
             label text for the given ring number
@@ -1672,15 +1672,15 @@ class PolarWindTrailPlot(PolarWindPlot):
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
 
-        Each polar plot ring is labelled, usually with a number followed by
-        unit string. The get_ring_label() method returns the label to be used
-        on a given ring. There are 5 equally spaced rings numbered from
-        1 (inside) to 5 (outside). A value of None will result in no label
+        Each polar plot ring is labelled. This label can be a percentage, a
+        value or some other text. The get_ring_label() method returns the label
+        to be used on a given ring. Rings are equally spaced and numbered from 1
+        (inside) to outside. A value of None will result in no label
         being displayed for the ring concerned.
 
         Input:
             ring: ring number for which a label is required, will be from
-                  1 (inside) to 5 (outside) inclusive
+                  1 to the number of rings used inclusive
 
         Returns:
             label text for the given ring number
@@ -1879,15 +1879,15 @@ class PolarWindSpiralPlot(PolarWindPlot):
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
 
-        Each polar plot ring is labelled, usually with a number followed by
-        unit string. The get_ring_label() method returns the label to be used
-        on a given ring. There are 5 equally spaced rings numbered from
-        1 (inside) to 5 (outside). A value of None will result in no label
+        Each polar plot ring is labelled. This label can be a percentage, a
+        value or some other text. The get_ring_label() method returns the label
+        to be used on a given ring. Rings are equally spaced and numbered from 1
+        (inside) to outside. A value of None will result in no label
         being displayed for the ring concerned.
 
         Input:
             ring: ring number for which a label is required, will be from
-                  1 (inside) to 5 (outside) inclusive
+                  1 to the number of rings used inclusive
 
         Returns:
             label text for the given ring number
@@ -1896,10 +1896,9 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # determine which sample will fall on the specified ring and extract
         # its timestamp
         if self.centre == "newest":
-            # TODO. Legacy comment. 5 is magic number for # of rings
-            sample = int(round((self.samples - 1) * (5 - ring) / 5))
+            sample = int(round((self.samples - 1) * (self.rings - ring) / self.rings))
         else:
-            sample = int(round((self.samples - 1) * ring / 5))
+            sample = int(round((self.samples - 1) * ring / self.rings))
         # get the sample ts as a datetime object
         _dt = datetime.datetime.fromtimestamp(self.time_vec.value[sample])
         # return the formatted time
@@ -2125,15 +2124,15 @@ class PolarWindScatterPlot(PolarWindPlot):
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
 
-        Each polar plot ring is labelled, usually with a number followed by
-        unit string. The get_ring_label() method returns the label to be used
-        on a given ring. There are 5 equally spaced rings numbered from
-        1 (inside) to 5 (outside). A value of None will result in no label
+        Each polar plot ring is labelled. This label can be a percentage, a
+        value or some other text. The get_ring_label() method returns the label
+        to be used on a given ring. Rings are equally spaced and numbered from 1
+        (inside) to outside. A value of None will result in no label
         being displayed for the ring concerned.
 
         Input:
             ring: ring number for which a label is required, will be from
-                  1 (inside) to 5 (outside) inclusive
+                  1 to the number of rings used inclusive
 
         Returns:
             label text for the given ring number
