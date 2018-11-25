@@ -1091,7 +1091,6 @@ class PolarWindPlot(object):
 
 class PolarWindRosePlot(PolarWindPlot):
     """Specialised class to generate a polar wind rose plot."""
-    # TODO: Post-implementation review of petals/petal width code as per Issue #34
 
     def __init__(self, skin_dict, plot_dict):
         """Initialise a PolarWindRosePlot object."""
