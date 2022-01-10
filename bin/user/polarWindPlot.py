@@ -1,36 +1,11 @@
-# polarWindPlot.py
-#
-# A weeWX generator to generate a various polar wind plots.
-#
-# Copyright (c) 2017-2018   Gary Roderick           gjroderick<at>gmail.com
-#                           Neil Trimboy            neil.trimboy<at>gmail.com
-#
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-# details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program.  If not, see http://www.gnu.org/licenses/.
-#
-# Version: 0.1.0                                    Date: ?? ???????ber 2018
-#
-# Revision History
-#   ?? ???????ber 2018  v0.1.0
-#       -   initial release
-#
 """
-A weeWX generator to generate a various polar wind plots.
+polarWindPlot.py
 
+A WeeWX generator to generate various polar wind plots.
 
 The Polar Wind Plot Image Generator generates polar plots of wind related
-observations from weeWX archive data. The polar plots are generated as image
-files suitable for publishing on a web page, inclusion in a weeWX template or
+observations from WeeWX archive data. The polar plots are generated as image
+files suitable for publishing on a web page, inclusion in a WeeWX template or
 for use elsewhere. The Polar Wind Plot Image Generator can generate the
 following polar wind plots:
 
@@ -42,6 +17,27 @@ following polar wind plots:
 Various parameters including the plot type, period, source data field, units
 of measure and colours can be controlled by the user through various
 configuration options similar to other image generators.
+
+Copyright (c) 2017-2012   Gary Roderick           gjroderick<at>gmail.com
+                          Neil Trimboy            neil.trimboy<at>gmail.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see https://www.gnu.org/licenses/.
+
+Version: 0.1.0                                      Date: ?? ??????? 2022
+
+Revision History
+   ?? ??????? 2022      v0.1.0
+       -   initial release
 """
 # TODO: Testing. Test trail plot net vector positioning for various timestamp positions
 # TODO: Testing. Test use of data_binding config option
@@ -49,7 +45,6 @@ configuration options similar to other image generators.
 import datetime
 import math
 import os.path
-import syslog
 import time
 # first try to import from PIL then revert to python-imaging if an error
 try:
@@ -64,6 +59,40 @@ import weewx.reportengine
 from weeplot.utilities import get_font_handle
 from weeutil.weeutil import accumulateLeaves, option_as_list, TimeSpan, tobool, to_unicode
 from weewx.units import ValueTuple
+
+# import/setup logging, WeeWX v3 is syslog based but WeeWX v4 is logging based,
+# try v4 logging and if it fails use v3 logging
+try:
+    # WeeWX4 logging
+    import logging
+
+    log = logging.getLogger(__name__)
+
+    def logdbg(msg):
+        log.debug(msg)
+
+    def loginf(msg):
+        log.info(msg)
+
+    def logerr(msg):
+        log.error(msg)
+
+except ImportError:
+    # WeeWX legacy (v3) logging via syslog
+    import syslog
+
+    def logmsg(level, msg):
+        syslog.syslog(level, 'polarwindplot: %s' % msg)
+
+    def logdbg(msg):
+        logmsg(syslog.LOG_DEBUG, msg)
+
+    def loginf(msg):
+        logmsg(syslog.LOG_INFO, msg)
+
+    def logerr(msg):
+        logmsg(syslog.LOG_ERR, msg)
+
 
 POLAR_WIND_PLOT_VERSION = '0.1.0'
 
@@ -93,26 +122,6 @@ DEGREE_SYMBOL = u'\N{DEGREE SIGN}'
 PREFERRED_LABEL_QUADRANTS = [1, 2, 0, 3]
 
 
-def logmsg(lvl, msg):
-    syslog.syslog(lvl, 'polarwindplot: %s' % msg)
-
-
-def logdbg(msg):
-    logmsg(syslog.LOG_DEBUG, msg)
-
-
-def loginf(msg):
-    logmsg(syslog.LOG_INFO, msg)
-
-
-def logerr(msg):
-    logmsg(syslog.LOG_ERR, msg)
-
-
-def logcrt(msg):
-    logmsg(syslog.LOG_CRIT, msg)
-
-
 # =============================================================================
 #                        Class PolarWindPlotGenerator
 # =============================================================================
@@ -122,12 +131,13 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
     """Class used to control generation of polar wind plots.
 
     The PolarWindPlotGenerator class is a customised report generator that
-    produces polar wind plots based upon weeWX archive data. The generator
-    produces image files that may be included in a web page, a
-    weeWX web page template or elsewhere as required.
+    produces polar wind plots based upon WeeWX archive data. The generator
+    produces image files that may be included in a web page, a WeeWX web page
+    template or elsewhere as required.
 
     The polar wind plot characteristics may be controlled through option
-    settings in the [StdReport] [[PolarWindPlotGenerator]] section of weewx.conf.
+    settings in the [StdReport] [[PolarWindPlotGenerator]] section of
+    weewx.conf.
     """
 
     def __init__(self, config_dict, skin_dict, gen_ts, first_run, stn_info,
@@ -277,12 +287,12 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                     # render the entire plot and produce an image
                     image = plot_obj.render(title)
 
-                    # now save the file, wrap in a try..except in case we have
+                    # now save the file, wrap in a try ... except in case we have
                     # a problem saving
                     try:
                         image.save(img_file)
                         ngen += 1
-                    except IOError, e:
+                    except IOError as e:
                         loginf("Unable to save to file '%s': %s" % (img_file, e))
         if self.log_success:
             loginf("Generated %d images for %s in %.2f seconds" % (ngen,
@@ -434,7 +444,7 @@ class PolarWindPlot(object):
         self.legend_bar_width = int(self.plot_dict.get('legend_bar_width', 10))
         self.legend_font_size = int(self.plot_dict.get('legend_font_size', 10))
         _legend_font_color = self.plot_dict.get('legend_font_color')
-        self.legend_font_color  = parse_color(_legend_font_color, '#000000')
+        self.legend_font_color = parse_color(_legend_font_color, '#000000')
         self.legend_width = 0
 
         # title/plot label attributes
@@ -508,7 +518,7 @@ class PolarWindPlot(object):
         """Add source data to the plot.
 
         Inputs:
-            speed_field: weeWX archive field being used as the source for speed
+            speed_field: WeeWX archive field being used as the source for speed
                          data
             speed_vec:   ValueTuple containing vector of speed data to be
                          plotted
@@ -520,7 +530,7 @@ class PolarWindPlot(object):
             units:       unit label for speed_vec units
         """
 
-        # weeWX archive field that was used for our speed data
+        # WeeWX archive field that was used for our speed data
         self.speed_field = speed_field
         # find maximum speed from our data
         max_speed = max(speed_vec.value)
@@ -790,7 +800,7 @@ class PolarWindPlot(object):
                 # calculate x and y coords (top left corner) for the text
                 x0 = self.origin_x + int(radius * math.cos(angle) - width / 2.0)
                 y0 = self.origin_y + int(radius * math.sin(angle) - height / 2.0)
-                # the inner most labels have a background box painted first
+                # the innermost labels have a background box painted first
                 if i < self.rings - 1:
                     # calculate the bottom right corner of the background box
                     x1 = self.origin_x + int(radius * math.cos(angle) + width / 2.0)
@@ -2069,7 +2079,7 @@ class PolarWindScatterPlot(PolarWindPlot):
         # Determine which quadrant will contain the ring labels. Ring labels
         # are displayed on a 45 degree radial in one of the 4 quadrants.
         # Preferred quadrant is SE (aka lower right or quadrant 1) but use a
-        # different quadrant if there is a lot of data in SE that may be be
+        # different quadrant if there is a lot of data in SE that may be
         # obscured by the labels. Do a simple check of how many points are in
         # the SE quadrant and if more than 30% of our samples then chose
         # another quadrant that has less than 30% of the samples. Quadrants are
