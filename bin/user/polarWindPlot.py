@@ -90,6 +90,8 @@ SPEED_LOOKUP = {'km_per_hour': 'km/h',
 
 DEGREE_SYMBOL = u'\N{DEGREE SIGN}'
 
+PREFERRED_LABEL_QUADRANTS = [1, 2, 0, 3]
+
 
 def logmsg(lvl, msg):
     syslog.syslog(lvl, 'polarwindplot: %s' % msg)
@@ -470,6 +472,10 @@ class PolarWindPlot(object):
             _ts_loc.add('right')
         self.timestamp_location = _ts_loc
 
+        # get clear size for ring labels
+        # TODO. Check ring_label_clear_arc is consistent with config item naming conventions used so far
+        self.ring_label_clear_arc = self.plot_dict.get('ring_label_clear_arc', 30)
+
         # initialise a number of properties to be used later
         self.speed_field = None
         self.max_speed_range = None
@@ -762,8 +768,12 @@ class PolarWindPlot(object):
         # loop over the rings getting the label for each ring
         for i in range(self.rings):
             labels[i] = self.get_ring_label(i + 1)
+        # TODO. Which angle formula
         # calculate location of ring labels, first we need the angle to use
-        angle = 7 * math.pi / 4 + int(self.label_dir / 4.0) * math.pi / 2
+        angle = (3.5 + self.label_dir) * math.pi / 2
+        # previously was
+        # angle = 7 * math.pi / 4 + int(self.label_dir / 4.0) * math.pi / 2
+
         # Now draw ring labels. For clarity each label (except for outside
         # label) is drawn on a rectangle with background colour set to that of
         # the polar plot background.
@@ -1246,6 +1256,22 @@ class PolarWindRosePlot(PolarWindPlot):
                         label_count = sum(wind_bin[i])
                         # set label_dir to this direction
                         label_dir = _dict[i]
+        loginf("PolarWindRosePlot: set_plot: label_dir=%s" % (label_dir, ))
+        angle_inc = 360.0 / self.petals
+        total = [0, 0, 0, 0]
+        for p in range(4):
+            for b in range(self.petals):
+                if abs(b * angle_inc - (p * 90 + 45)) <= self.ring_label_clear_arc:
+                    total[p] += sum(wind_bin[b]) / float(self.samples)
+        # work through our preferred label quadrant s and take the first with
+        # less than 30% of the max
+        label_dir = 1
+        for q in PREFERRED_LABEL_QUADRANTS:
+            if total[p] < 0.3 * self.max_ring_val:
+                label_dir = q
+                break
+        loginf("PolarWindRosePlot: set_plot: label_dir_new=%s" % (label_dir,))
+
         self.label_dir = label_dir
         # save wind_bin, we need it later to render the rose plot
         self.wind_bin = wind_bin
@@ -1406,6 +1432,9 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.vector_location = _v_align | _h_align
 #        loginf("self.timestamp_location=%s self.vector_location=%s" % (self.timestamp_location, self.vector_location))
 
+        # get clear size for ring labels
+        # TODO. Check ring_label_clear_arc is consistent with config item naming conventions used so far
+        self.ring_label_clear_arc = self.plot_dict.get('ring_label_clear_arc', 30)
         # set some properties to startup defaults
         self.max_vector_radius = None
         self.ring_units = None
@@ -1489,33 +1518,36 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.vector_x = vec_x
         self.vector_y = vec_y
 
-        # Find which direction from the bullseye to use to display ring range
-        # labels - look for one that is relatively clear. Only consider NE,
-        # SE, SW and NW; preference in order is SE, SW, NE and NW. label_dir
-        # stored as an integer corresponding to the windrose arms, 2=NE, 6=SE,
-        # 10=SW, 14=NW.
+        # Determine which quadrant will contain the ring labels. Ring labels
+        # are displayed on a 45 degree radial in one of the 4 quadrants.
+        # Preferred quadrant is SE (aka lower right or quadrant 1) but use a
+        # different quadrant if the net vector appears in the SE quadrant and
+        # is too close to the 45 degree radial used for labels. Quadrants are
+        # checked in order of preference according to contents of
+        # PREFERRED_LABEL_QUADRANTS.
 
-        # iterate over the possible directions
+        # first calculate the angle of our vector in degrees (0-360) but
+        # translate to NSEW rather than cartesian coords used by atan2
+        angle = math.degrees(math.atan2(vec_x, vec_y)) % 360
+        # and work out which quadrant that is
+        quadrant = int(angle // 90)
 
-        # what quadrant is the final cumulative vector in
-        if vec_x >= 0:
-            if vec_y >= 0:
-                # NE
-                _final_vector_dir = 2
-            else:
-                # SE
-                _final_vector_dir = 6
-        else:
-            if vec_y >= 0:
-                # NW
-                _final_vector_dir = 14
-            else:
-                # SW
-                _final_vector_dir = 10
-        for i in [6, 10, 2, 14]:
-            if i != _final_vector_dir:
-                self.label_dir = i
+        # default to SE quadrant
+        label_dir = 1
+
+        # now check each quadrant in our preferred label quadrant list and take
+        # the first entry suitable entry
+        for q in PREFERRED_LABEL_QUADRANTS:
+            # calculate the difference in angle between the 45 degree radial in
+            # the quadrant being checked and the final net vector
+            label_diff = abs(45 + q * 90 - angle)
+            # the current quadrant is suitable if the net vector is in another
+            # quadrant or the net vector is more than ring_label_clear_arc
+            # degrees away from the 45 degree radial
+            if q != quadrant or label_diff >= self.ring_label_clear_arc:
+                label_dir = q
                 break
+        self.label_dir = label_dir
 
         # determine the 'unit' label to use on ring labels
         self.ring_units = DISTANCE_LOOKUP[self.speed_vec.unit]
@@ -1774,9 +1806,13 @@ class PolarWindSpiralPlot(PolarWindPlot):
         polar spiral plot.
         """
 
-        # set the location of the ring labels, in this case SE
+        # Determine which quadrant will contain the ring labels. Ring labels
+        # are displayed on a 45 degree radial in one of the 4 quadrants.
+        # Preferred quadrant is SE (aka lower right or quadrant 1).
+
+        # Use the default SE quadrant
         # TODO. Legacy comment. Make a sensible choice rather than an arbitrary one
-        self.label_dir = 6
+        self.label_dir = 1
 
     def render_plot(self):
         """Render the spiral plot data."""
@@ -1861,8 +1897,10 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     i2 = self.samples - 1 - i
                 else:
                     i2 = i
-                # TODO. Legacy comment. Trap sample = 0 or 1
-                self.radius = i2 * plot_radius/(self.samples - 1)
+                if self.samples > 1:
+                    self.radius = i2 * plot_radius/(self.samples - 1)
+                else:
+                    self.radius = 0
                 # if the current direction sample is not None then plot it
                 # otherwise skip it
                 if this_dir_vec is not None:
@@ -2028,10 +2066,35 @@ class PolarWindScatterPlot(PolarWindPlot):
         polar scatter plot.
         """
 
-        # set the location of the ring labels, in this case SE
+        # Determine which quadrant will contain the ring labels. Ring labels
+        # are displayed on a 45 degree radial in one of the 4 quadrants.
+        # Preferred quadrant is SE (aka lower right or quadrant 1) but use a
+        # different quadrant if there is a lot of data in SE that may be be
+        # obscured by the labels. Do a simple check of how many points are in
+        # the SE quadrant and if more than 30% of our samples then chose
+        # another quadrant that has less than 30% of the samples. Quadrants are
+        # checked in order of preference according to contents of
+        # PREFERRED_LABEL_QUADRANTS.
 
-        # TODO. Legacy comment. / Make sensible choice
-        self.label_dir = 6
+        # initialise a list to holds the sample counts for quadrant 0 to 3
+        quadrant_count = [0 for x in range(4)]
+        # iterate over our samples assigning each to a particular quadrant
+        for i in range(0, self.samples):
+            # get the direction component of the sample vector
+            _dir_vec = self.dir_vec.value[i]
+            # increment the count for the quadrant that will contain the sample
+            quadrant_count[int(_dir_vec // 90)] += 1
+        # now choose the quadrant for our labels, default to SE (quadrant 1)
+        label_dir = 1
+        # iterate over our quadrants in preferred order of use
+        for q in PREFERRED_LABEL_QUADRANTS:
+            # take the first quadrant that has < 30% of the samples
+            if quadrant_count[q] <= 0.3 * self.samples:
+                label_dir = q
+                break
+        # assign the chosen quadrant to a property
+        self.label_dir = label_dir
+
         # determine the 'unit' label to use on ring labels
         self.ring_units = SPEED_LOOKUP[self.speed_vec.unit]
 
