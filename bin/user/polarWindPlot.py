@@ -319,10 +319,10 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
     def skipThisPlot(self, ts, img_file, plot_name):
         """Determine whether the plot is to be skipped or not.
 
-        Successive report cyles will likely produce a windrose that,
+        Successive report cycles will likely produce a windrose that,
         irrespective of period, would be different to the windrose from the
         previous report cycle. In most cases the changes are insignificant so,
-        as with the weewx graphical plots, long period plots are generated
+        as with the WeeWX graphical plots, long period plots are generated
         less frequently than shorter period plots. Windrose plots will be
         skipped if:
             (1) no period was specified (need to put entry in syslog)
@@ -337,9 +337,9 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
 
         These rules result in windrose plots being generated:
             (1) if an existing plot does not exist
-            (2) an existing plot exists but it is older than 24 hours
+            (2) an existing plot exists, but it is older than 24 hours
             (3) every 24 hours when period > 30 days (2592000 sec)
-            (4) every 1 hour when period is > 7 days (604800 sec) but
+            (4) every 1-hour when period is > 7 days (604800 sec) but
                 <= 30 days (2592000 sec)
             (5) every report cycle when period < 7 days (604800 sec)
 
@@ -376,7 +376,7 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
         if self.period >= 604800 and ts - os.stat(img_file).st_mtime < 3600:
             return True
 
-        # Otherwise we must regenerate
+        # otherwise, we must regenerate
         return False
 
 
@@ -468,7 +468,7 @@ class PolarWindPlot(object):
         # on the stacked bar in the legend. 7 elements only (ie 0, 10% of max,
         # 20% of max...100% of max)
         self.speed_factors = [0.0, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0]
-        # setup a list with speed range boundaries
+        # set up a list with speed range boundaries
         self.speed_list = []
 
         # get the timestamp format, use a sane default that should display
@@ -513,6 +513,8 @@ class PolarWindPlot(object):
 
         self.speed_bin = None
         self.label_dir = None
+
+        self.timestamp = None
 
     def add_data(self, speed_field, speed_vec, dir_vec, time_vec, samples, units):
         """Add source data to the plot.
@@ -576,7 +578,7 @@ class PolarWindPlot(object):
             self.title_height = 0
 
     def set_polar_grid(self):
-        """Setup the polar plot grid.
+        """Set up the polar plot grid.
 
         Determine size and location of the polar grid on which the plot is to
         be displayed.
@@ -604,7 +606,7 @@ class PolarWindPlot(object):
         self.origin_y = 1 + int((self.image_height + self.title_height + _n_height - _s_height) / 2.0)
 
     def set_legend(self, percentage=False):
-        """Setup the legend for a plot.
+        """Set up the legend for a plot.
 
         Determine the legend width and title.
         """
@@ -1151,9 +1153,9 @@ class PolarWindRosePlot(PolarWindPlot):
         self.draw = ImageDraw.Draw(image)
         # get handles for the fonts we will use
         self.get_font_handles()
-        # setup the legend
+        # set up the legend
         self.set_legend(percentage=True)
-        # setup the plot title
+        # set up the plot title
         self.set_title(title)
         # set the speed list boundary values
         self.set_speed_list()
@@ -1169,13 +1171,13 @@ class PolarWindRosePlot(PolarWindPlot):
         self.render_polar_grid(bullseye=self.bullseye)
         # render the timestamp label
         self.render_timestamp()
-        # finally render the plot
+        # finally, render the plot
         self.render_plot()
         # return the completed plot image
         return image
 
     def set_plot(self):
-        """Setup the rose plot render."""
+        """Set up the rose plot render."""
 
         # Setup 2D list for wind direction. wind_bin[0] represents each of
         # 'petals' compass directions ([0] is N, increasing clockwise).
@@ -1461,9 +1463,9 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.draw = ImageDraw.Draw(image)
         # get handles for the fonts we will use
         self.get_font_handles()
-        # setup the legend
+        # set up the legend
         self.set_legend()
-        # setup the plot title
+        # set up the plot title
         self.set_title(title)
         # set the speed list boundary values
         self.set_speed_list()
@@ -1481,13 +1483,13 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.render_timestamp()
         # render the overall windrun vector text
         self.render_vector()
-        # finally render the plot
+        # finally, render the plot
         self.render_plot()
         # return the completed plot image
         return image
 
     def set_plot(self):
-        """Setup the trail plot render.
+        """Set up the trail plot render.
 
         Perform any calculations or set any properties required to render the
         polar trail plot.
@@ -1784,15 +1786,15 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.draw = ImageDraw.Draw(image)
         # get handles for the fonts we will use
         self.get_font_handles()
-        # setup the legend
+        # set up the legend
         self.set_legend()
-        # setup the plot title
+        # set up the plot title
         self.set_title(title)
         # set the speed list boundary values
         self.set_speed_list()
         # set up the background polar grid
         self.set_polar_grid()
-        # setup the spiral plot
+        # set up the spiral plot
         self.set_plot()
         # render the title
         self.render_title()
@@ -1804,13 +1806,13 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.render_timestamp()
         # render the spiral direction label
         self.render_spiral_direction_label()
-        # finally render the plot
+        # finally, render the plot
         self.render_plot()
         # return the completed plot image
         return image
 
     def set_plot(self):
-        """Setup the spiral plot render.
+        """Set up the spiral plot render.
 
         Perform any calculations or set any properties required to render the
         polar spiral plot.
@@ -2052,11 +2054,11 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.draw = ImageDraw.Draw(image)
         # get handles for the fonts we will use
         self.get_font_handles()
-        # setup the plot title
+        # set up the plot title
         self.set_title(title)
         # set up the background polar grid
         self.set_polar_grid()
-        # setup the spiral plot
+        # set up the spiral plot
         self.set_plot()
         # render the title
         self.render_title()
@@ -2064,13 +2066,13 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.render_polar_grid()
         # render the timestamp label
         self.render_timestamp()
-        # finally render the plot
+        # finally, render the plot
         self.render_plot()
         # return the completed plot image
         return image
 
     def set_plot(self):
-        """Setup the scatter plot render.
+        """Set up the scatter plot render.
 
         Perform any calculations or set any properties required to render the
         polar scatter plot.
