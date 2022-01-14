@@ -470,13 +470,28 @@ class PolarWindPlot(object):
         # get the timestamp format, use a sane default that should display
         # sensibly for all locales
         self.timestamp_format = self.plot_dict.get('time_stamp', '%x %X')
-        # get the timestamp location
-        _ts_loc = set(self.plot_dict.get('time_stamp_location', {}))
-        if not _ts_loc & {'top', 'bottom'}:
-            _ts_loc.add('bottom')
-        if not _ts_loc & {'left', 'centre', 'center', 'right'}:
-            _ts_loc.add('right')
-        self.timestamp_location = _ts_loc
+        # get the timestamp location.
+        # First get the option as a list. The default is bottom, right.
+        _ts_loc = self.plot_dict.get('time_stamp_location', 'bottom, right').lower()
+        # if we have None as a string in any case combination take that as no
+        # timestamp label is to be shown
+        if _ts_loc == 'none':
+            self.timestamp_location = None
+        else:
+            # we have something other than None so we will be displaying a
+            # timestamp label
+            # get our option as a list
+            _ts_loc = weeutil.weeutil.option_as_list(_ts_loc)
+            # now convert to a set
+            _ts_loc = set(_ts_loc)
+            # if we don't have a vertical position specified default to 'bottom'
+            if not _ts_loc & {'top', 'bottom'}:
+                _ts_loc.add('bottom')
+            # if we don't have a horizontal position specified default to 'right'
+            if not _ts_loc & {'left', 'centre', 'center', 'right'}:
+                _ts_loc.add('right')
+            # assign the resulting set to the timestamp_location property
+            self.timestamp_location = _ts_loc
 
         # get clear size for ring labels
         # TODO. Check ring_label_clear_arc is consistent with config item naming conventions used so far
@@ -1750,9 +1765,21 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # get line_type, default to None
-        self.line_type = self.plot_dict.get('line_type')
-        self.line_type = None if self.line_type == '' else self.line_type
+        # Get line_type; available options are 'straight', 'radial' or None.
+        # Default to 'straight'.
+        _line_type = self.plot_dict.get('line_type', 'straight').lower()
+        # Handle the None case. If the string 'None' is specified (in any case
+        # combination) then accept that as python None. Also use None if the
+        # line_type config option has been listed but with no value.
+        _line_type = None if _line_type == '' or _line_type == 'none' else _line_type
+        # filter any invalid line types replacing them with 'straight'
+        if _line_type not in (None, 'straight', 'radial'):
+            # add a debug log entry
+            logdbg("Invalid line type '%s' specified for spiral plot. "
+                   "Defaulting to 'straight'" % (_line_type, ))
+            # and default to 'straight'
+            _line_type = 'straight'
+        self.line_type = _line_type
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
@@ -1874,8 +1901,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
                 # determine line color to be used
                 line_color = self.get_speed_color(self.line_color,
                                                   this_speed_vec)
-                # draw the line, line type can be 'straight', 'radial' or no
-                # line
+                # draw the line; line type can be 'straight', 'radial' or None
+                # for no line
                 if self.line_type == "straight":
                     vector = (int(last_x), int(last_y), int(self.x), int(self.y))
                     self.draw.line(vector, fill=line_color, width=self.line_width)
@@ -1951,32 +1978,46 @@ class PolarWindSpiralPlot(PolarWindPlot):
     def render_spiral_direction_label(self):
         """Render label indicating direction of the spiral."""
 
-        # the text depends on whether the newest or oldest samples are in the
-        # center
+        # Construct the spiral direction label text. The text depends on
+        # whether the newest or oldest samples are in the centre.
         if self.centre == "newest":
             # newest in the center
-            _label_text = "Newest in Center " + self.get_ring_label(0)
+            _label_text = "Newest (%s) in centre" % (self.get_ring_label(0))
         else:
             # oldest in the center, include the date of the oldest
-            _label_text = "Oldest in Center " + self.get_ring_label(0)
+            _label_text = "Oldest (%s) in center" % (self.get_ring_label(0))
         # get the size of the label
         width, height = self.draw.textsize(_label_text, font=self.label_font)
-        # TODO. Legacy comment. Does this conflict with the location of the timestamp?
-        # now locate the label
+        # Now locate the label. We follow the vertical location of the
+        # timestamp label but we render on the opposite side of the plot so as
+        # to not overwrite the timestamp label. If there is no timestamp label
+        # then default to the bottom left.
         if self.timestamp_location is not None:
-            if 'top' in self.timestamp_location:
-                y = self.plot_border + height
-            else:
-                y = self.image_height-self.plot_border - height
+            # start off using the same vertical alignment as the timestamp
+            # label
+            same_vert_align = True
             if 'left' in self.timestamp_location:
+                # timestamp is left so we go right
                 x = self.image_width - self.plot_border - width
             elif ('center' in self.timestamp_location) or ('centre' in self.timestamp_location):
+                # We cannot use the same vertical alignment as the timestamp
+                # label - we can't fit. So we use the same horizontal alignment
+                # (centre) but the opposite vertical alignment.
+                same_vert_align = False
                 x = self.origin_x - width / 2
-                # TODO. Legacy comment. Can't do this one
             else:
-                # Assume RIGHT
+                # it's not left or centre so it must be right, so we go left
                 x = self.plot_border
+            if 'top' in self.timestamp_location and same_vert_align or \
+                    'bottom' in self.timestamp_location and not same_vert_align:
+                # we are using the top
+                y = self.plot_border + height
+            else:
+                # otherwise we go bottom
+                y = self.image_height - self.plot_border - height
         else:
+            # there is no timestamp being displayed so we are free to use
+            # anywhere, default to bottom right
             x = self.image_width - self.plot_border - width
             y = self.image_height - self.plot_border - height
         # render the label
