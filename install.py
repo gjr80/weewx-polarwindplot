@@ -101,7 +101,7 @@ class PolarWindPlotInstaller(ExtensionInstaller):
             author_email="gjroderick@gmail.com neil.trimboy@gmail.com",
             config=polar_dict,
             files=[
-                ('bin/user', ['bin/user/polarWindplot.py']),
+                ('bin/user', ['bin/user/polarWindPlot.py']),
                 ('skins/PolarWindPlot', ['skins/PolarWindPlot/skin.conf'])
             ]
         )
