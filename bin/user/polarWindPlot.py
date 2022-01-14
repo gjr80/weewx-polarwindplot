@@ -42,6 +42,7 @@ Revision History
 # TODO: Testing. Test trail plot net vector positioning for various timestamp positions
 # TODO: Testing. Test use of data_binding config option
 
+# python imports
 import datetime
 import math
 import os.path
@@ -54,11 +55,14 @@ except ImportError:
     import ImageColor
     import ImageDraw
 
-import weewx.reportengine
+# Compatibility shims
+import six
 
-from weeplot.utilities import get_font_handle
-from weeutil.weeutil import accumulateLeaves, option_as_list, TimeSpan, tobool, to_unicode
-from weewx.units import ValueTuple
+# WeeWX imports
+import weewx.units
+import weeplot.utilities
+import weeutil.weeutil
+import weewx.reportengine
 
 # import/setup logging, WeeWX v3 is syslog based but WeeWX v4 is logging based,
 # try v4 logging and if it fails use v3 logging
@@ -157,7 +161,8 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
         self.formatter = weewx.units.Formatter.fromSkinDict(self.skin_dict)
         self.converter = weewx.units.Converter.fromSkinDict(self.skin_dict)
         # determine how much logging is desired
-        self.log_success = tobool(self.polar_dict.get('log_success', True))
+        self.log_success = weeutil.weeutil.tobool(self.polar_dict.get('log_success',
+                                                                      True))
         # initialise the plot period
         self.period = None
 
@@ -193,7 +198,7 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
             # now loop over all plot names in this 'time span' section
             for plot in self.polar_dict[span].sections:
                 # accumulate all options from parent nodes:
-                plot_options = accumulateLeaves(self.polar_dict[span][plot])
+                plot_options = weeutil.weeutil.accumulateLeaves(self.polar_dict[span][plot])
                 # get a polar wind plot object from the factory
                 plot_obj = self._polar_plot_factory(plot_options)
 
@@ -244,7 +249,7 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                 for source in self.polar_dict[span][plot].sections:
 
                     # accumulate options from parent nodes
-                    source_options = accumulateLeaves(self.polar_dict[span][plot][source])
+                    source_options = weeutil.weeutil.accumulateLeaves(self.polar_dict[span][plot][source])
 
                     # Get plot title if explicitly requested, default to no
                     # title. Config option 'label' used for consistency with
@@ -264,7 +269,8 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                         sp_field = 'windSpeed'
                         dir_field = 'windDir'
                     # hit the archive to get speed and direction plot data
-                    t_span = TimeSpan(plotgen_ts - self.period + 1, plotgen_ts)
+                    t_span = weeutil.weeutil.TimeSpan(plotgen_ts - self.period + 1,
+                                                      plotgen_ts)
                     (_, sp_t_vec, sp_vec_raw) = dbmanager.getSqlVectors(t_span,
                                                                         sp_field)
                     (_, dir_t_vec, dir_vec) = dbmanager.getSqlVectors(t_span,
@@ -421,8 +427,8 @@ class PolarWindPlot(object):
         _plot_font_color = self.plot_dict.get('plot_font_color')
         self.plot_font_color = parse_color(_plot_font_color, '#000000')
         # colours to be used in the plot
-        _colors = option_as_list(self.plot_dict.get('plot_colors',
-                                                    DEFAULT_PLOT_COLORS))
+        _colors = weeutil.weeutil.option_as_list(self.plot_dict.get('plot_colors',
+                                                                    DEFAULT_PLOT_COLORS))
         self.plot_colors = []
         for _color in _colors:
             if parse_color(_color, None) is not None:
@@ -440,7 +446,8 @@ class PolarWindPlot(object):
 
         # legend attributes
         # do we display a legend, default to True
-        self.legend = tobool(self.plot_dict.get('legend', True))
+        self.legend = weeutil.weeutil.tobool(self.plot_dict.get('legend',
+                                                                True))
         self.legend_bar_width = int(self.plot_dict.get('legend_bar_width', 10))
         self.legend_font_size = int(self.plot_dict.get('legend_font_size', 10))
         _legend_font_color = self.plot_dict.get('legend_font_color')
@@ -453,8 +460,8 @@ class PolarWindPlot(object):
         self.label_font_color = parse_color(_label_font_color, '#000000')
 
         # compass point abbreviations
-        compass = option_as_list(skin_dict['Labels'].get('compass_points',
-                                                         'N, S, E, W'))
+        compass = weeutil.weeutil.option_as_list(skin_dict['Labels'].get('compass_points',
+                                                                         'N, S, E, W'))
 
         self.north = compass[0]
         self.south = compass[1]
@@ -569,7 +576,7 @@ class PolarWindPlot(object):
             title: the title text to be displayed on the plot
         """
 
-        self.title = to_unicode(title)
+        self.title = six.ensure_text(title)
         if title:
             self.title_width, self.title_height = self.draw.textsize(self.title,
                                                                      font=self.label_font)
@@ -945,14 +952,14 @@ class PolarWindPlot(object):
         """Get font handles for the fonts to be used."""
 
         # font used on the plot area
-        self.plot_font = get_font_handle(self.font_path,
-                                         self.plot_font_size)
+        self.plot_font = weeplot.utilities.get_font_handle(self.font_path,
+                                                           self.plot_font_size)
         # font used for the legend
-        self.legend_font = get_font_handle(self.font_path,
-                                           self.legend_font_size)
+        self.legend_font = weeplot.utilities.get_font_handle(self.font_path,
+                                                             self.legend_font_size)
         # font used for labels/title
-        self.label_font = get_font_handle(self.font_path,
-                                          self.label_font_size)
+        self.label_font = weeplot.utilities.get_font_handle(self.font_path,
+                                                            self.label_font_size)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
@@ -1675,7 +1682,9 @@ class PolarWindTrailPlot(PolarWindPlot):
         _dir = int(_dir) if _dir >= 0 else int(_dir + 360)
         # convert to a ValueTuple and use our formatter to get the correct
         # ordinal direction
-        _dir_vt = ValueTuple(_dir, 'degree_compass', 'group_direction')
+        _dir_vt = weewx.units.ValueTuple(_dir,
+                                         'degree_compass',
+                                         'group_direction')
         _ord_dir = self.formatter.to_ordinal_compass(_dir_vt)
         # construct the text
         _vector_text = "Net windrun %s%s from %s%s(%s)" % (_mag,
