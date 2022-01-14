@@ -1844,8 +1844,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # are displayed on a 45 degree radial in one of the 4 quadrants.
         # Preferred quadrant is SE (aka lower right or quadrant 1).
 
+        # TODO. Do we need some logic in making this choice or leave it arbitrary?
         # Use the default SE quadrant
-        # TODO. Legacy comment. Make a sensible choice rather than an arbitrary one
         self.label_dir = 1
 
     def render_plot(self):
@@ -1858,6 +1858,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # process our data twice; once to plot the 'trail' and a second time to
         # plot any markers
 
+        # TODO. We should be able to combine the line and marker plot routines
         # plot the spiral line
         last_x = self.origin_x
         last_y = self.origin_y
@@ -1875,14 +1876,12 @@ class PolarWindSpiralPlot(PolarWindPlot):
             this_speed_vec = self.speed_vec.value[i]
             # Calculate radius for this sample. Note assumes equal time periods
             # between samples
-            # TODO. Legacy comment. Handle case where self.samples==1
-            # TODO. Legacy comment. Actually radius should be a function of time, this will then cope with nones/gaps and short set of samples
-            # TODO. Legacy comment. NOTE2GR You modified my outer for loop, but we still need the if below to calculate radius correctly
+            # TODO. radius should be a function of time so as to better cope with gaps in data
             if self.centre == "newest":
-                i2 = self.samples - 1 - i
+                scale = self.samples - 1 - i
             else:
-                i2 = i
-            self.radius = i2 * plot_radius/(self.samples - 1)
+                scale = i
+            self.radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
             # if the current direction sample is not None then plot it
             # otherwise skip it
             if this_dir_vec is not None:
@@ -1924,17 +1923,12 @@ class PolarWindSpiralPlot(PolarWindPlot):
                 this_speed_vec = self.speed_vec.value[i]
                 # Calculate radius for this sample. Note assumes equal time periods
                 # between samples
-                # TODO. Legacy comment. Handle case where self.samples==1
-                # TODO. Legacy comment. Actually radius should be a function of time, this will then cope with nones/gaps and short set of samples
-                # TODO. Legacy comment. NOTE2GR You modified my outer for loop, but we still need the if below to calculate radius correctly
+                # TODO. radius should be a function of time so as to better cope with gaps in data
                 if self.centre == "newest":
-                    i2 = self.samples - 1 - i
+                    scale = self.samples - 1 - i
                 else:
-                    i2 = i
-                if self.samples > 1:
-                    self.radius = i2 * plot_radius/(self.samples - 1)
-                else:
-                    self.radius = 0
+                    scale = i
+                self.radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
                 # if the current direction sample is not None then plot it
                 # otherwise skip it
                 if this_dir_vec is not None:
