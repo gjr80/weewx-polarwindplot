@@ -99,37 +99,27 @@ except ImportError:
 
 
 POLAR_WIND_PLOT_VERSION = '0.1.0'
-
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
-
 DEFAULT_NO_RINGS = 5
-
 DEFAULT_NO_PETALS = 16
-
 DEFAULT_PETAL_WIDTH = 0.8
-
 DEFAULT_BULLSEYE = 0.1
-
 DISTANCE_LOOKUP = {'km_per_hour': 'km',
                    'mile_per_hour': 'mile',
                    'meter_per_second': 'km',
                    'knot': 'Nm'}
-
 SPEED_LOOKUP = {'km_per_hour': 'km/h',
                 'mile_per_hour': 'mph',
                 'meter_per_second': 'm/s',
                 'knot': 'kn'}
-
 DEGREE_SYMBOL = u'\N{DEGREE SIGN}'
-
 PREFERRED_LABEL_QUADRANTS = [1, 2, 0, 3]
 
 
 # =============================================================================
 #                        Class PolarWindPlotGenerator
 # =============================================================================
-
 
 class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
     """Class used to control generation of polar wind plots.
@@ -389,7 +379,6 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
 # =============================================================================
 #                             Class PolarWindPlot
 # =============================================================================
-
 
 class PolarWindPlot(object):
     """Base class for creating a polar wind plot.
@@ -1117,7 +1106,6 @@ class PolarWindPlot(object):
 #                          Class PolarWindRosePlot
 # =============================================================================
 
-
 class PolarWindRosePlot(PolarWindPlot):
     """Specialised class to generate a polar wind rose plot."""
 
@@ -1387,7 +1375,6 @@ class PolarWindRosePlot(PolarWindPlot):
 # =============================================================================
 #                          Class PolarWindTrailPlot
 # =============================================================================
-
 
 class PolarWindTrailPlot(PolarWindPlot):
     """Specialised class to generate a wind trail plot."""
@@ -1746,7 +1733,6 @@ class PolarWindTrailPlot(PolarWindPlot):
 #                         Class PolarWindSpiralPlot
 # =============================================================================
 
-
 class PolarWindSpiralPlot(PolarWindPlot):
     """Specialised class to generate a spiral wind plot."""
 
@@ -2003,7 +1989,6 @@ class PolarWindSpiralPlot(PolarWindPlot):
 #                        Class PolarWindScatterPlot
 # =============================================================================
 
-
 class PolarWindScatterPlot(PolarWindPlot):
     """Specialised class to generate a windrose plot."""
 
@@ -2228,7 +2213,6 @@ class PolarWindScatterPlot(PolarWindPlot):
 # =============================================================================
 #                             Utility functions
 # =============================================================================
-
 
 # TODO. Which one do we keep, parse-color or parse_color2 ?
 def parse_color(color, default):
