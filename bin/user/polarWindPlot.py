@@ -493,8 +493,7 @@ class PolarWindPlot(object):
             # assign the resulting set to the timestamp_location property
             self.timestamp_location = _ts_loc
 
-        # get clear size for ring labels
-        # TODO. Check ring_label_clear_arc is consistent with config item naming conventions used so far
+        # get size of the arc to be kept clear for ring labels
         self.ring_label_clear_arc = self.plot_dict.get('ring_label_clear_arc', 30)
 
         # initialise a number of properties to be used later
@@ -791,12 +790,9 @@ class PolarWindPlot(object):
         # loop over the rings getting the label for each ring
         for i in range(self.rings):
             labels[i] = self.get_ring_label(i + 1)
-        # TODO. Which angle formula
-        # calculate location of ring labels, first we need the angle to use
-        angle = (3.5 + self.label_dir) * math.pi / 2
-        # previously was
-        # angle = 7 * math.pi / 4 + int(self.label_dir / 4.0) * math.pi / 2
-
+        # Calculate location of ring labels. First we need the angle to use,
+        # remember the angle is in radians.
+        angle = (3.5 + int(self.label_dir / 4.0)) * math.pi / 2
         # Now draw ring labels. For clarity each label (except for outside
         # label) is drawn on a rectangle with background colour set to that of
         # the polar plot background.
@@ -1106,7 +1102,6 @@ class PolarWindPlot(object):
         result = None
         if source == "speed":
             # colour is a function of speed
-            # TODO. Legacy comment. Yuk, 7 colours is hard coded
             for lookup in range(5, -1, -1):
                 if speed > self.speed_list[lookup]:
                     result = self.plot_colors[lookup + 1]
@@ -1234,8 +1229,6 @@ class PolarWindRosePlot(PolarWindPlot):
         # Calc the value to represented by outer ring (range 0 to 1). Value to
         # rounded up to next multiple of 0.05 (ie next 5%)
         self.max_ring_val = (int(max(sum(b) for b in wind_bin) / (0.05 * self.samples)) + 1) * 0.05
-
-        # TODO. Is there a better way to code / choose a free direction for ring labels
         # Find which wind rose arm to use to display ring range labels - look
         # for one that is relatively clear. Only consider NE, SE, SW and NW;
         # preference in order is SE, SW, NE and NW. label_dir stored as an
@@ -1245,55 +1238,29 @@ class PolarWindRosePlot(PolarWindPlot):
         _ne = int(self.petals * 0.125)
         _sw = int(self.petals * 0.625)
         _nw = int(self.petals * 0.875)
-        _dir_list = list()
-        _dir_list.append(_sw)
-        _dir_list.append(_ne)
-        _dir_list.append(_nw)
+        _dir_list = [_se, _sw, _ne, _nw]
         _dict = {_ne: 2, _se: 6, _sw: 10, _nw: 14}
         label_dir = None
-        if sum(wind_bin[_se]) / float(self.samples) <= 0.3 * self.max_ring_val:
-            # SE is clear so take it
-            label_dir = _dict[_se]
-        else:
-            # SE not clear so look at the others in turn
-            for i in _dir_list:
-                # is SW, NE or NW clear
-                if sum(wind_bin[i])/float(self.samples) <= 0.3 * self.max_ring_val:
-                    # it's clear so take it
-                    label_dir = _dict[i]
-                    # we have finished looking so exit the for loop
-                    break
-            else:
-                # prepend se direction to list
-                _dir_list.insert(0, _se)
-                # none are free so take the smallest of the four
-                # set max possible number of readings + 1
-                label_count = self.samples + 1
-                # iterate over the possible directions
-                for i in _dir_list:
-                    # if this direction has fewer obs than previous best then
-                    # remember it
-                    if sum(wind_bin[i]) < label_count:
-                        # set min count so far to this bin
-                        label_count = sum(wind_bin[i])
-                        # set label_dir to this direction
-                        label_dir = _dict[i]
-        loginf("PolarWindRosePlot: set_plot: label_dir=%s" % (label_dir, ))
-        angle_inc = 360.0 / self.petals
-        total = [0, 0, 0, 0]
-        for p in range(4):
-            for b in range(self.petals):
-                if abs(b * angle_inc - (p * 90 + 45)) <= self.ring_label_clear_arc:
-                    total[p] += sum(wind_bin[b]) / float(self.samples)
-        # work through our preferred label quadrant s and take the first with
-        # less than 30% of the max
-        label_dir = 1
-        for q in PREFERRED_LABEL_QUADRANTS:
-            if total[p] < 0.3 * self.max_ring_val:
-                label_dir = q
+        for i in _dir_list:
+            # is SW, NE or NW clear
+            if sum(wind_bin[i])/float(self.samples) <= 0.3 * self.max_ring_val:
+                # it's clear so take it
+                label_dir = _dict[i]
+                # we have finished looking so exit the for loop
                 break
-        loginf("PolarWindRosePlot: set_plot: label_dir_new=%s" % (label_dir,))
-
+        else:
+            # none are free so take the smallest of the four
+            # set max possible number of readings + 1
+            label_count = self.samples + 1
+            # iterate over the possible directions
+            for i in _dir_list:
+                # if this direction has fewer obs than previous best then
+                # remember it
+                if sum(wind_bin[i]) < label_count:
+                    # set min count so far to this bin
+                    label_count = sum(wind_bin[i])
+                    # set label_dir to this direction
+                    label_dir = _dict[i]
         self.label_dir = label_dir
         # save wind_bin, we need it later to render the rose plot
         self.wind_bin = wind_bin
@@ -1429,7 +1396,6 @@ class PolarWindTrailPlot(PolarWindPlot):
                                         'red')
 
         # TODO. Legacy comment. Not sure about the 'rest of the points comment, does this mean marker_color? (which is not default None)
-        # TODO. Legacy comment. This should make more sense now
         # TODO inconsistent use of None or "none" in code/skin for these colours.modes that can take different values including none
         # get end_point_color, default to None
         self.end_point_color = parse_color(self.plot_dict.get('end_point_color', None),
@@ -1453,8 +1419,7 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.vector_location = _v_align | _h_align
 #        loginf("self.timestamp_location=%s self.vector_location=%s" % (self.timestamp_location, self.vector_location))
 
-        # get clear size for ring labels
-        # TODO. Check ring_label_clear_arc is consistent with config item naming conventions used so far
+        # get size of the arc to be kept clear for ring labels
         self.ring_label_clear_arc = self.plot_dict.get('ring_label_clear_arc', 30)
         # set some properties to startup defaults
         self.max_vector_radius = None
@@ -1517,7 +1482,6 @@ class PolarWindTrailPlot(PolarWindPlot):
             self.factor = 3600.0
         # iterate over the samples, ignore the first since we don't know what
         # period (delta) it applies to
-        # TODO. Legacy comment. NT Check this, its been changed to 1
         for i in range(1, self.samples):
             this_dir_vec = self.dir_vec.value[i]
             this_speed_vec = self.speed_vec.value[i]
@@ -1590,7 +1554,6 @@ class PolarWindTrailPlot(PolarWindPlot):
             vec_y = 0
             # iterate over the samples, ignore the first since we don't know what
             # period (delta) it applies to
-            # TODO. Legacy comment. NT Check this, its been changed to 1
             for i in range(1, self.samples):
                 this_dir_vec = self.dir_vec[0][i]
                 this_speed_vec = self.speed_vec[0][i]
@@ -2064,9 +2027,9 @@ class PolarWindScatterPlot(PolarWindPlot):
 
         # get colors for oldest and newest points
         _oldest_color = self.plot_dict.get('oldest_color')
-        self.oldest_color = parse_color2(_oldest_color, '#F7FAFF')
+        self.oldest_color = parse_color(_oldest_color, '#F7FAFF')
         _newest_color = self.plot_dict.get('newest_color')
-        self.newest_color = parse_color2(_newest_color, '#00368E')
+        self.newest_color = parse_color(_newest_color, '#00368E')
 
         # get axis label format
         self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
@@ -2187,7 +2150,6 @@ class PolarWindScatterPlot(PolarWindPlot):
                         elif self.line_type == "spoke":
                             spoke = (self.origin_x, self.origin_y, x, y)
                             self.draw.line(spoke, fill=line_color, width=self.line_width)
-                        # TODO. Legacy comment. Last one should be default else
                         elif self.line_type == "radial":
                             self.join_curve(last_x, last_y, last_r, last_a,
                                             x, y, radius, this_dir_vec,
@@ -2249,37 +2211,7 @@ class PolarWindScatterPlot(PolarWindPlot):
 #                             Utility functions
 # =============================================================================
 
-# TODO. Which one do we keep, parse-color or parse_color2 ?
-def parse_color(color, default):
-    """Parse a string representing a color.
-
-    Parse a parameter representing a colour where the value may be a colour
-    word eg 'red', a tuple representing RGB values eg (255, 0, 0) or a number
-    eg 0xFF0000. The color parameter may be None or a string representation of
-    None in which case the value None will be returned. If the parameter
-    cannot be interpreted as a valid colour return the default.
-
-    Inputs:
-        color:   the string to be parsed
-        default: the default value if color cannot be parsed to a valid colour
-
-    Returns:
-        a valid rgb tuple or the value None
-    """
-
-    # do we have a valid color or none (in any case)
-    if color is not None and color.lower() != 'none':
-        try:
-            result = ImageColor.getrgb(color)
-        except ValueError:
-            # color is not a recognised color string, use the default
-            result = default
-    else:
-        result = None
-    return result
-
-
-def parse_color2(color, default=None):
+def parse_color(color, default=None):
     """Parse a string representing a color.
 
     Parse a parameter representing a colour where the value may be a colour
@@ -2298,13 +2230,10 @@ def parse_color2(color, default=None):
     # do we have a valid color or none (in any case)
     try:
         result = ImageColor.getrgb(color)
-    except ValueError:
-        # color is not a recognised color string, use the default
-        result = parse_color2(default)
-    except AttributeError:
-        # color is something (maybe None) that getrgb() cannot parse, use the
-        # default
-        result = parse_color2(default)
+    except:
+        # color is not a recognised color string or color is something (maybe
+        # None) that getrgb() cannot parse. Either way use the default
+        result = parse_color(default) if default is not None else None
     return result
 
 
