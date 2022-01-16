@@ -1851,21 +1851,15 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.label_dir = 1
 
     def render_plot(self):
-        """Render the spiral plot data."""
+        """Render the spiral plot."""
 
         # radius of plot area in pixels
         plot_radius = self.max_plot_dia / 2
-
-        # unfortunately PIL does not allow us to work with layers so we need to
-        # process our data twice; once to plot the 'trail' and a second time to
-        # plot any markers
-
-        # TODO. We should be able to combine the line and marker plot routines
-        # plot the spiral line
+        # we start from the origin so set our 'last' values
         last_x = self.origin_x
         last_y = self.origin_y
-        last_a = int(0)
-        last_r = int(0)
+        last_dir = 0
+        last_radius = 0
         # work out our first and last samples based on the direction of the
         # spiral
         if self.centre == "newest":
@@ -1878,11 +1872,11 @@ class PolarWindSpiralPlot(PolarWindPlot):
             this_speed_vec = self.speed_vec.value[i]
             # Calculate radius for this sample. Note assumes equal time periods
             # between samples
-            # TODO. radius should be a function of time so as to better cope with gaps in data
             if self.centre == "newest":
                 scale = self.samples - 1 - i
             else:
                 scale = i
+            # TODO. radius should be a function of time so as to better cope with gaps in data
             self.radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
             # if the current direction sample is not None then plot it
             # otherwise skip it
@@ -1892,13 +1886,6 @@ class PolarWindSpiralPlot(PolarWindPlot):
                 # calculate plot coords for this sample
                 self.x = self.origin_x + self.radius * math.sin(math.radians(this_dir_vec))
                 self.y = self.origin_y - self.radius * math.cos(math.radians(this_dir_vec))
-                # if this is the first sample then the last point must be set
-                # to this point
-                if i == start:
-                    last_x = self.x
-                    last_y = self.y
-                    last_a = this_a
-                    last_r = self.radius
                 # determine line color to be used
                 line_color = self.get_speed_color(self.line_color,
                                                   this_speed_vec)
@@ -1908,20 +1895,22 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     vector = (int(last_x), int(last_y), int(self.x), int(self.y))
                     self.draw.line(vector, fill=line_color, width=self.line_width)
                 elif self.line_type == "radial":
-                    self.join_curve(last_x, last_y, last_r, last_a,
+                    self.join_curve(last_x, last_y, last_radius, last_dir,
                                     self.x, self.y, self.radius, this_a,
                                     line_color, self.line_width)
-                # plot the marker if required
+                # do we need to plot a marker
                 if self.marker_type is not None:
+                    # we do, so get the colour, it's based on speed
                     marker_color = self.get_speed_color(self.line_color,
                                                         this_speed_vec)
                     # now draw the marker
-                    self.render_marker(self.x, self.y, self.marker_size, self.marker_type, marker_color)
+                    self.render_marker(self.x, self.y, self.marker_size,
+                                       self.marker_type, marker_color)
                 # this sample is complete, save it as the 'last' sample
                 last_x = self.x
                 last_y = self.y
-                last_a = this_a
-                last_r = self.radius
+                last_dir = this_a
+                last_radius = self.radius
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
