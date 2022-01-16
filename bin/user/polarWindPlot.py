@@ -1771,11 +1771,6 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # get axis label format
         self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
 
-        # initialise some properties for use later
-        self.x = None
-        self.y = None
-        self.radius = None
-
     def render(self, title):
         """Main entry point to generate a spiral polar wind plot."""
 
@@ -1852,26 +1847,26 @@ class PolarWindSpiralPlot(PolarWindPlot):
             else:
                 scale = i
             # TODO. radius should be a function of time so as to better cope with gaps in data
-            self.radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
+            this_radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
             # if the current direction sample is not None then plot it
             # otherwise skip it
             if this_dir_vec is not None:
                 # bearing for this sample
-                this_a = int(this_dir_vec)
+                this_dir = int(this_dir_vec)
                 # calculate plot coords for this sample
-                self.x = self.origin_x + self.radius * math.sin(math.radians(this_dir_vec))
-                self.y = self.origin_y - self.radius * math.cos(math.radians(this_dir_vec))
+                x = self.origin_x + this_radius * math.sin(math.radians(this_dir_vec))
+                y = self.origin_y - this_radius * math.cos(math.radians(this_dir_vec))
                 # determine line color to be used
                 line_color = self.get_speed_color(self.line_color,
                                                   this_speed_vec)
                 # draw the line; line type can be 'straight', 'radial' or None
                 # for no line
                 if self.line_type == "straight":
-                    vector = (int(last_x), int(last_y), int(self.x), int(self.y))
+                    vector = (int(last_x), int(last_y), int(x), int(y))
                     self.draw.line(vector, fill=line_color, width=self.line_width)
                 elif self.line_type == "radial":
                     self.join_curve(last_x, last_y, last_radius, last_dir,
-                                    self.x, self.y, self.radius, this_a,
+                                    x, y, this_radius, this_dir,
                                     line_color, self.line_width)
                 # do we need to plot a marker
                 if self.marker_type is not None:
@@ -1879,13 +1874,13 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     marker_color = self.get_speed_color(self.line_color,
                                                         this_speed_vec)
                     # now draw the marker
-                    self.render_marker(self.x, self.y, self.marker_size,
+                    self.render_marker(x, y, self.marker_size,
                                        self.marker_type, marker_color)
                 # this sample is complete, save it as the 'last' sample
-                last_x = self.x
-                last_y = self.y
-                last_dir = this_a
-                last_radius = self.radius
+                last_x = x
+                last_y = y
+                last_dir = this_dir
+                last_radius = this_radius
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
