@@ -1,5 +1,5 @@
 """
-polarWindPlot.py
+polarwindplot.py
 
 A WeeWX generator to generate various polar wind plots.
 
@@ -9,16 +9,18 @@ files suitable for publishing on a web page, inclusion in a WeeWX template or
 for use elsewhere. The Polar Wind Plot Image Generator can generate the
 following polar wind plots:
 
--   wind rose
--   wind scatter
--   wind spiral
--   wind trail
+-   Wind rose. Traditional wind rose showing dominant wind directions and speed
+               ranges.
+-   Scatter.   Plot showing variation in wind speed and direction over time.
+-   Spiral.    Plot showing wind direction over time with colour coded wind
+               speed.
+-   Trail.     Plot showing vector wind run over time.
 
 Various parameters including the plot type, period, source data field, units
 of measure and colours can be controlled by the user through various
 configuration options similar to other image generators.
 
-Copyright (c) 2017-2012   Gary Roderick           gjroderick<at>gmail.com
+Copyright (c) 2017-2022   Gary Roderick           gjroderick<at>gmail.com
                           Neil Trimboy            neil.trimboy<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
@@ -33,10 +35,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.0                                      Date: ?? ??????? 2022
+Version: 0.1.0b1                                    Date: 16 January 2022
 
 Revision History
-   ?? ??????? 2022      v0.1.0
+   16 January 2022      v0.1.0
        -   initial release
 """
 # TODO: Testing. Test trail plot net vector positioning for various timestamp positions
@@ -55,7 +57,7 @@ except ImportError:
     import ImageColor
     import ImageDraw
 
-# Compatibility shims
+# compatibility shims
 import six
 
 # WeeWX imports
@@ -98,7 +100,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.0'
+POLAR_WIND_PLOT_VERSION = '0.1.0b1'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NO_RINGS = 5
@@ -124,14 +126,14 @@ PREFERRED_LABEL_QUADRANTS = [1, 2, 0, 3]
 class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
     """Class used to control generation of polar wind plots.
 
-    The PolarWindPlotGenerator class is a customised report generator that
+    The PolarWindPlotGenerator class is a customised image generator that
     produces polar wind plots based upon WeeWX archive data. The generator
     produces image files that may be included in a web page, a WeeWX web page
     template or elsewhere as required.
 
     The polar wind plot characteristics may be controlled through option
-    settings in the [StdReport] [[PolarWindPlotGenerator]] section of
-    weewx.conf.
+    settings in the relevant skin.conf or under the relevant report stanza in
+    the [StdReport] section of weewx.conf.
     """
 
     def __init__(self, config_dict, skin_dict, gen_ts, first_run, stn_info,
@@ -302,13 +304,13 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
         plot_type = plot_dict.get('plot_type', 'rose').lower()
         # create and return the relevant polar plot object
         if plot_type == 'rose':
-            return PolarWindRosePlot(self.skin_dict, plot_dict)
+            return PolarWindRosePlot(self.skin_dict, plot_dict, self.formatter)
         elif plot_type == 'trail':
-            return PolarWindTrailPlot(self.skin_dict, plot_dict)
+            return PolarWindTrailPlot(self.skin_dict, plot_dict, self.formatter)
         elif plot_type == 'spiral':
-            return PolarWindSpiralPlot(self.skin_dict, plot_dict)
+            return PolarWindSpiralPlot(self.skin_dict, plot_dict, self.formatter)
         elif plot_type == 'scatter':
-            return PolarWindScatterPlot(self.skin_dict, plot_dict)
+            return PolarWindScatterPlot(self.skin_dict, plot_dict, self.formatter)
         # if we made it here we don't know about the specified plot so raise
         raise weewx.UnsupportedFeature('Unsupported polar wind plot type: %s' % plot_type)
 
@@ -347,8 +349,6 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
         Returns:
             True if plot is to be generated, False if plot is to be skipped.
         """
-        # TODO. Remove following line (return False) before release
-        return False
 
         # Images without a period must be skipped every time and a syslog
         # entry added. This should never occur, but....
@@ -387,8 +387,11 @@ class PolarWindPlot(object):
     render() method must be defined for each type of plot.
     """
 
-    def __init__(self, skin_dict, plot_dict):
+    def __init__(self, skin_dict, plot_dict, formatter):
         """Initialise an instance of PolarWindPlot."""
+
+        # save the formatter
+        self.formatter = formatter
 
         # get config dict for polar plots
         self.plot_dict = plot_dict
@@ -1117,13 +1120,19 @@ class PolarWindPlot(object):
 # =============================================================================
 
 class PolarWindRosePlot(PolarWindPlot):
-    """Specialised class to generate a polar wind rose plot."""
+    """Specialised class to generate a polar wind rose plot.
 
-    def __init__(self, skin_dict, plot_dict):
+    The polar wind rose shows the frequency of winds over a period of time by
+    wind direction with colour bands showing wind speed ranges. The plot
+    results in a number of multi-coloured spokes with the direction of the
+    longest spoke showing the wind direction with the greatest frequency.
+    """
+
+    def __init__(self, skin_dict, plot_dict, formatter):
         """Initialise a PolarWindRosePlot object."""
 
         # initialise my superclass
-        super(PolarWindRosePlot, self).__init__(skin_dict, plot_dict)
+        super(PolarWindRosePlot, self).__init__(skin_dict, plot_dict, formatter)
 
         # get petal width, if not defined then use the default
         self.petals = int(self.plot_dict.get('petals', DEFAULT_NO_PETALS))
@@ -1355,26 +1364,528 @@ class PolarWindRosePlot(PolarWindPlot):
 
 
 # =============================================================================
-#                          Class PolarWindTrailPlot
+#                        Class PolarWindScatterPlot
 # =============================================================================
 
-class PolarWindTrailPlot(PolarWindPlot):
-    """Specialised class to generate a wind trail plot."""
+class PolarWindScatterPlot(PolarWindPlot):
+    """Specialised class to generate a windrose plot.
 
-    def __init__(self, skin_dict, plot_dict):
-        """Initialise a PolarWindTrailPlot object."""
+    The wind scatter plat shows wind speed and direction over a period of time.
+    Points are plotted by time with wind speed represented by the distance from
+    the origin and wind direction is incicated by the polar angle. The plotted
+    points can be optionally connected in order of age by a single line. The
+    line may transition in colour from oldest to youngest. The plot typically
+    results in a single curved line that joins all plotted points in time order.
+    """
+
+    def __init__(self, skin_dict, plot_dict, formatter):
+        """Initialise a PolarWindScatterPlot object."""
 
         # initialise my superclass
-        super(PolarWindTrailPlot, self).__init__(skin_dict, plot_dict)
+        super(PolarWindScatterPlot, self).__init__(skin_dict, plot_dict, formatter)
+
+        # we don't display a legend on a scatter plot so force legend to False
+        self.legend = False
+        #  Get marker_type, default to  None
+        _marker_type = self.plot_dict.get('marker_type')
+        self.marker_type = None if _marker_type == '' else _marker_type
+        # get marker_size, default to '1'
+        self.marker_size = int(self.plot_dict.get('marker_size', 1))
+        # Get line_type; available options are 'straight', 'spoke', 'radial' or
+        # None. Default to 'straight'.
+        _line_type = self.plot_dict.get('line_type', 'straight').lower()
+        # Handle the None case. If the string 'None' is specified (in any case
+        # combination) then accept that as python None. Also use None if the
+        # line_type config option has been listed but with no value.
+        _line_type = None if _line_type == '' or _line_type == 'none' else _line_type
+        # filter any invalid line types replacing them with 'straight'
+        if _line_type not in (None, 'straight', 'spoke', 'radial'):
+            # add a debug log entry
+            logdbg("Invalid line type '%s' specified for spiral plot. "
+                   "Defaulting to 'straight'" % (_line_type, ))
+            # and default to 'straight'
+            _line_type = 'straight'
+        self.line_type = _line_type
+        # get line_width, default to 1
+        self.line_width = int(self.plot_dict.get('line_width', 1))
+        # Get line_color, can be 'age' or a valid color. Default to 'age'.
+        _line_color = self.plot_dict.get('line_color', 'age')
+        # we have a line color but is it valid or a type we know about
+        if _line_color in ['age']:
+            # it's a color style I understand
+            self.line_color = _line_color
+        else:
+            _parsed = parse_color(_line_color, None)
+            if _parsed is not None:
+                # we have a valid supported color
+                self.line_color = _parsed
+            else:
+                # it's an invalid color so use 'age' instead and log it
+                self.line_color = 'age'
+                logdbg("Unknown scatter plot line color '%s', using 'age' instead" % (_line_color, ))
+
+        # get colors for oldest and newest points
+        _oldest_color = self.plot_dict.get('oldest_color')
+        self.oldest_color = parse_color(_oldest_color, '#F7FAFF')
+        _newest_color = self.plot_dict.get('newest_color')
+        self.newest_color = parse_color(_newest_color, '#00368E')
+
+        # get axis label format
+        self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
+
+        # initialise some properties for use later
+        self.ring_units = None
+
+    def render(self, title):
+        """Main entry point to generate a scatter polar wind plot."""
+
+        # get an Image object for our plot
+        image = self.get_image()
+        # get a Draw object on which to render the plot
+        self.draw = ImageDraw.Draw(image)
+        # get handles for the fonts we will use
+        self.get_font_handles()
+        # set up the plot title
+        self.set_title(title)
+        # set up the background polar grid
+        self.set_polar_grid()
+        # set up the spiral plot
+        self.set_plot()
+        # render the title
+        self.render_title()
+        # render the polar grid
+        self.render_polar_grid()
+        # render the timestamp label
+        self.render_timestamp()
+        # finally, render the plot
+        self.render_plot()
+        # return the completed plot image
+        return image
+
+    def set_plot(self):
+        """Set up the scatter plot render.
+
+        Perform any calculations or set any properties required to render the
+        polar scatter plot.
+        """
+
+        # Determine which quadrant will contain the ring labels. Ring labels
+        # are displayed on a 45 degree radial in one of the 4 quadrants.
+        # Preferred quadrant is SE (aka lower right or quadrant 1) but use a
+        # different quadrant if there is a lot of data in SE that may be
+        # obscured by the labels. Do a simple check of how many points are in
+        # the SE quadrant and if more than 30% of our samples then chose
+        # another quadrant that has less than 30% of the samples. Quadrants are
+        # checked in order of preference according to contents of
+        # PREFERRED_LABEL_QUADRANTS.
+
+        # initialise a list to holds the sample counts for quadrant 0 to 3
+        quadrant_count = [0 for x in range(4)]
+        # iterate over our samples assigning each to a particular quadrant
+        for i in range(0, self.samples):
+            # get the direction component of the sample vector
+            _dir_vec = self.dir_vec.value[i]
+            # increment the count for the quadrant that will contain the sample
+            quadrant_count[int(_dir_vec // 90)] += 1
+        # now choose the quadrant for our labels, default to SE (quadrant 1)
+        label_dir = 1
+        # iterate over our quadrants in preferred order of use
+        for q in PREFERRED_LABEL_QUADRANTS:
+            # take the first quadrant that has < 30% of the samples
+            if quadrant_count[q] <= 0.3 * self.samples:
+                label_dir = q
+                break
+        # assign the chosen quadrant to a property
+        self.label_dir = label_dir
+
+        # determine the 'unit' label to use on ring labels
+        self.ring_units = SPEED_LOOKUP[self.speed_vec.unit]
+
+    def render_plot(self):
+        """Render the scatter plot."""
+
+        # do we need to plot anything
+        if self.line_type is not None or self.marker_type is not None:
+            # radius of plot area in pixels
+            plot_radius = self.max_plot_dia / 2
+            # initialise values for the last plot point, use None as there is
+            # no last point the first time around
+            last_x = last_y = last_dir = last_radius = None
+            # iterate over the samples
+            for i in range(0, self.samples):
+                this_dir_vec = self.dir_vec.value[i]
+                this_speed_vec = self.speed_vec.value[i]
+                # we only plot if we have values for speed and dir
+                if this_speed_vec is not None and this_dir_vec is not None:
+                    # calculate the 'radius' in pixels of the vector
+                    # representing the sample to be plotted
+                    this_radius = plot_radius * this_speed_vec / self.max_speed_range
+                    # calculate the x and y coords of the sample to be plotted
+                    x = int(self.origin_x + this_radius * math.sin(math.radians(this_dir_vec)))
+                    y = int(self.origin_y - this_radius * math.cos(math.radians(this_dir_vec)))
+                    # if this is the first sample we can skip it as we have
+                    # nothing to plot from
+                    if last_radius is not None:
+                        # determine the line color to be used
+                        if self.line_color == "age":
+                            # color is dependent on the age of the sample so
+                            # calculate a transition color
+                            line_color = color_trans(self.oldest_color,
+                                                     self.newest_color,
+                                                     i / (self.samples - 1.0))
+                        else:
+                            # fixed line color
+                            line_color = self.line_color
+                        # draw the line, line type can be 'straight', 'spoke',
+                        # 'radial' or no line
+                        if self.line_type == "straight":
+                            xy = (last_x, last_y, x, y)
+                            self.draw.line(xy, fill=line_color, width=self.line_width)
+                        elif self.line_type == "spoke":
+                            spoke = (self.origin_x, self.origin_y, x, y)
+                            self.draw.line(spoke, fill=line_color, width=self.line_width)
+                        elif self.line_type == "radial":
+                            self.join_curve(last_x, last_y, last_radius, last_dir,
+                                            x, y, this_radius, this_dir_vec,
+                                            line_color, self.line_width)
+                        # do we need to plot a marker
+                        if self.marker_type is not None:
+                            # we do, so get the colour, it's based on a
+                            # transition or is fixed
+                            if self.line_color == "age":
+                                marker_color = color_trans(self.oldest_color,
+                                                           self.newest_color,
+                                                           i / (self.samples - 1.0))
+                            else:
+                                marker_color = self.line_color
+                            # now draw the marker
+                            self.render_marker(x, y, self.marker_size,
+                                               self.marker_type, marker_color)
+                    # this sample is complete, save the plot values as the
+                    # 'last' sample
+                    last_x = x
+                    last_y = y
+                    last_dir = this_dir_vec
+                    last_radius = this_radius
+
+    def get_ring_label(self, ring):
+        """Get the label to be displayed on the polar plot rings.
+
+        Each polar plot ring is labelled. This label can be a percentage, a
+        value or some other text. The get_ring_label() method returns the label
+        to be used on a given ring. Rings are equally spaced and numbered from 1
+        (inside) to outside. A value of None will result in no label
+        being displayed for the ring concerned.
+
+        Input:
+            ring: ring number for which a label is required, will be from
+                  1 to the number of rings used inclusive
+
+        Returns:
+            label text for the given ring number
+        """
+
+        label_inc = self.max_speed_range / self.rings
+        return ''.join([str(int(round(label_inc * ring, 0))), self.ring_units])
+
+
+# =============================================================================
+#                         Class PolarWindSpiralPlot
+# =============================================================================
+
+class PolarWindSpiralPlot(PolarWindPlot):
+    """Specialised class to generate a spiral wind plot.
+
+    The wind spiral plot shows the wind speed and direction over over a period
+    of time. The plot consists of a single line starting from the origin of the
+    polar plot and ending at the outer edge of the plot area. Wind speed is
+    indicated by the colour of the line and wind direction by the polar plot
+    angle. The plot may place the oldest entry at the origin and the most
+    recent entry at the outer edge or it may place the most recent entry at the
+    origin and the oldest entry at the outer edge. The plot typically results
+    in a single curved line that spirals from the origin to the outer edge of
+    the plot area.
+    """
+
+    def __init__(self, skin_dict, plot_dict, formatter):
+        """Initialise a PolarWindSpiralPlot object."""
+
+        # initialise my superclass
+        super(PolarWindSpiralPlot, self).__init__(skin_dict, plot_dict, formatter)
+
+        # Display oldest or newest data at centre? Default to oldest.
+        self.centre = self.plot_dict.get('centre', 'oldest')
 
         # get marker_type, default to None
         _marker_type = self.plot_dict.get('marker_type')
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # get line_type, default to None
-        self.line_type = self.plot_dict.get('line_type')
-        self.line_type = None if self.line_type == '' else self.line_type
+        # Get line_type; available options are 'straight', 'radial' or None.
+        # Default to 'straight'.
+        _line_type = self.plot_dict.get('line_type', 'straight').lower()
+        # Handle the None case. If the string 'None' is specified (in any case
+        # combination) then accept that as python None. Also use None if the
+        # line_type config option has been listed but with no value.
+        _line_type = None if _line_type == '' or _line_type == 'none' else _line_type
+        # filter any invalid line types replacing them with 'straight'
+        if _line_type not in (None, 'straight', 'radial'):
+            # add a debug log entry
+            logdbg("Invalid line type '%s' specified for spiral plot. "
+                   "Defaulting to 'straight'" % (_line_type, ))
+            # and default to 'straight'
+            _line_type = 'straight'
+        self.line_type = _line_type
+        # get line_width, default to 1
+        self.line_width = int(self.plot_dict.get('line_width', 1))
+        # Get line_color, can be 'speed', 'age' or a valid color. Default to
+        # 'speed'.
+        self.line_color = self.plot_dict.get('line_color', 'speed')
+        if self.line_color not in ['speed', 'age']:
+            self.line_color = parse_color(self.line_color, 'speed')
+        # Get marker_color, can be 'speed' or a valid color. Default to 'speed'.
+        self.marker_color = self.plot_dict.get('marker_color', 'speed')
+        if self.marker_color != 'speed':
+            self.marker_color = parse_color(self.marker_color, 'speed')
+        # get axis label format
+        self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
+
+    def render(self, title):
+        """Main entry point to generate a spiral polar wind plot."""
+
+        # get an Image object for our plot
+        image = self.get_image()
+        # get a Draw object on which to render the plot
+        self.draw = ImageDraw.Draw(image)
+        # get handles for the fonts we will use
+        self.get_font_handles()
+        # set up the legend
+        self.set_legend()
+        # set up the plot title
+        self.set_title(title)
+        # set the speed list boundary values
+        self.set_speed_list()
+        # set up the background polar grid
+        self.set_polar_grid()
+        # set up the spiral plot
+        self.set_plot()
+        # render the title
+        self.render_title()
+        # render the legend
+        self.render_legend()
+        # render the polar grid
+        self.render_polar_grid()
+        # render the timestamp label
+        self.render_timestamp()
+        # render the spiral direction label
+        self.render_spiral_direction_label()
+        # finally, render the plot
+        self.render_plot()
+        # return the completed plot image
+        return image
+
+    def set_plot(self):
+        """Set up the spiral plot render.
+
+        Perform any calculations or set any properties required to render the
+        polar spiral plot.
+        """
+
+        # Determine which quadrant will contain the ring labels. Ring labels
+        # are displayed on a 45 degree radial in one of the 4 quadrants.
+        # Preferred quadrant is SE (aka lower right or quadrant 1).
+
+        # TODO. Do we need some logic in making this choice or leave it arbitrary?
+        # Use the default SE quadrant
+        self.label_dir = 1
+
+    def render_plot(self):
+        """Render the spiral plot."""
+
+        # do we need to plot anything
+        if self.line_type is not None or self.marker_type is not None:
+            # radius of plot area in pixels
+            plot_radius = self.max_plot_dia / 2
+            # we start from the origin so set our 'last' values
+            last_x = self.origin_x
+            last_y = self.origin_y
+            last_dir = 0
+            last_radius = 0
+            # work out our first and last samples based on the direction of the
+            # spiral
+            if self.centre == "newest":
+                start, stop, step = self.samples-1, -1, -1
+            else:
+                start, stop, step = 0, self.samples, 1
+            # iterate over the samples starting from the centre of the spiral
+            for i in range(start, stop, step):
+                this_dir_vec = self.dir_vec.value[i]
+                this_speed_vec = self.speed_vec.value[i]
+                # Calculate radius for this sample. Note assumes equal time periods
+                # between samples
+                if self.centre == "newest":
+                    scale = self.samples - 1 - i
+                else:
+                    scale = i
+                # TODO. radius should be a function of time so as to better cope with gaps in data
+                this_radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
+                # if the current direction sample is not None then plot it
+                # otherwise skip it
+                if this_dir_vec is not None:
+                    # bearing for this sample
+                    this_dir = int(this_dir_vec)
+                    # calculate plot coords for this sample
+                    x = self.origin_x + this_radius * math.sin(math.radians(this_dir_vec))
+                    y = self.origin_y - this_radius * math.cos(math.radians(this_dir_vec))
+                    # determine line color to be used
+                    line_color = self.get_speed_color(self.line_color,
+                                                      this_speed_vec)
+                    # draw the line; line type can be 'straight', 'radial' or None
+                    # for no line
+                    if self.line_type == "straight":
+                        vector = (int(last_x), int(last_y), int(x), int(y))
+                        self.draw.line(vector, fill=line_color, width=self.line_width)
+                    elif self.line_type == "radial":
+                        self.join_curve(last_x, last_y, last_radius, last_dir,
+                                        x, y, this_radius, this_dir,
+                                        line_color, self.line_width)
+                    # do we need to plot a marker
+                    if self.marker_type is not None:
+                        # we do, so get the colour, it's based on speed
+                        marker_color = self.get_speed_color(self.line_color,
+                                                            this_speed_vec)
+                        # now draw the marker
+                        self.render_marker(x, y, self.marker_size,
+                                           self.marker_type, marker_color)
+                    # this sample is complete, save it as the 'last' sample
+                    last_x = x
+                    last_y = y
+                    last_dir = this_dir
+                    last_radius = this_radius
+
+    def get_ring_label(self, ring):
+        """Get the label to be displayed on the polar plot rings.
+
+        Each polar plot ring is labelled. This label can be a percentage, a
+        value or some other text. The get_ring_label() method returns the label
+        to be used on a given ring. Rings are equally spaced and numbered from 1
+        (inside) to outside. A value of None will result in no label
+        being displayed for the ring concerned.
+
+        Input:
+            ring: ring number for which a label is required, will be from
+                  1 to the number of rings used inclusive
+
+        Returns:
+            label text for the given ring number
+        """
+
+        # determine which sample will fall on the specified ring and extract
+        # its timestamp
+        if self.centre == "newest":
+            sample = int(round((self.samples - 1) * (self.rings - ring) / self.rings))
+        else:
+            sample = int(round((self.samples - 1) * ring / self.rings))
+        # get the sample ts as a datetime object
+        _dt = datetime.datetime.fromtimestamp(self.time_vec.value[sample])
+        # return the formatted time
+        return _dt.strftime(self.axis_label).strip()
+
+    def render_spiral_direction_label(self):
+        """Render label indicating direction of the spiral."""
+
+        # Construct the spiral direction label text. The text depends on
+        # whether the newest or oldest samples are in the centre.
+        if self.centre == "newest":
+            # newest in the center
+            _label_text = "Newest (%s) in centre" % (self.get_ring_label(0))
+        else:
+            # oldest in the center, include the date of the oldest
+            _label_text = "Oldest (%s) in center" % (self.get_ring_label(0))
+        # get the size of the label
+        width, height = self.draw.textsize(_label_text, font=self.label_font)
+        # Now locate the label. We follow the vertical location of the
+        # timestamp label but we render on the opposite side of the plot so as
+        # to not overwrite the timestamp label. If there is no timestamp label
+        # then default to the bottom left.
+        if self.timestamp_location is not None:
+            # start off using the same vertical alignment as the timestamp
+            # label
+            same_vert_align = True
+            if 'left' in self.timestamp_location:
+                # timestamp is left so we go right
+                x = self.image_width - self.plot_border - width
+            elif ('center' in self.timestamp_location) or ('centre' in self.timestamp_location):
+                # We cannot use the same vertical alignment as the timestamp
+                # label - we can't fit. So we use the same horizontal alignment
+                # (centre) but the opposite vertical alignment.
+                same_vert_align = False
+                x = self.origin_x - width / 2
+            else:
+                # it's not left or centre so it must be right, so we go left
+                x = self.plot_border
+            if 'top' in self.timestamp_location and same_vert_align or \
+                    'bottom' in self.timestamp_location and not same_vert_align:
+                # we are using the top
+                y = self.plot_border + height
+            else:
+                # otherwise we go bottom
+                y = self.image_height - self.plot_border - height
+        else:
+            # there is no timestamp being displayed so we are free to use
+            # anywhere, default to bottom right
+            x = self.image_width - self.plot_border - width
+            y = self.image_height - self.plot_border - height
+        # render the label
+        self.draw.text((x, y), _label_text,
+                       fill=self.legend_font_color,
+                       font=self.legend_font)
+
+
+# =============================================================================
+#                          Class PolarWindTrailPlot
+# =============================================================================
+
+class PolarWindTrailPlot(PolarWindPlot):
+    """Specialised class to generate a wind trail plot.
+
+
+    The wind trail plot shows a polar representation of windrun over a period
+    of time. The plot starts at the origin of the polar plot with subsequent
+    points plotted based on the windrun and direction relative to the last
+    point. The most recent point is plotted on outer edge of the polar plot.
+    The location of the most recent point gives the overall vector windrun
+    (distance and direction) during the plot period. The plotted points may be
+    optionally connect by a line. The plot typically results in a single curved
+    line from the origin to the outer edge of the plot.
+    """
+
+    def __init__(self, skin_dict, plot_dict, formatter):
+        """Initialise a PolarWindTrailPlot object."""
+
+        # initialise my superclass
+        super(PolarWindTrailPlot, self).__init__(skin_dict, plot_dict, formatter)
+
+        # get marker_type, default to None
+        _marker_type = self.plot_dict.get('marker_type')
+        self.marker_type = None if _marker_type == '' else _marker_type
+        # get marker_size, default to '1'
+        self.marker_size = int(self.plot_dict.get('marker_size', 1))
+        # Get line_type; available options are 'straight', 'radial' or None.
+        # Default to 'straight'.
+        _line_type = self.plot_dict.get('line_type', 'straight').lower()
+        # Handle the None case. If the string 'None' is specified (in any case
+        # combination) then accept that as python None. Also use None if the
+        # line_type config option has been listed but with no value.
+        _line_type = None if _line_type == '' or _line_type == 'none' else _line_type
+        # filter any invalid line types replacing them with 'straight'
+        if _line_type not in (None, 'straight', 'radial'):
+            # add a debug log entry
+            logdbg("Invalid line type '%s' specified for spiral plot. "
+                   "Defaulting to 'straight'" % (_line_type, ))
+            # and default to 'straight'
+            _line_type = 'straight'
+        self.line_type = _line_type
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
 
@@ -1395,8 +1906,6 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.vector_color = parse_color(self.plot_dict.get('vector_color', 'red'),
                                         'red')
 
-        # TODO. Legacy comment. Not sure about the 'rest of the points comment, does this mean marker_color? (which is not default None)
-        # TODO inconsistent use of None or "none" in code/skin for these colours.modes that can take different values including none
         # get end_point_color, default to None
         self.end_point_color = parse_color(self.plot_dict.get('end_point_color', None),
                                            None)
@@ -1417,7 +1926,6 @@ class PolarWindTrailPlot(PolarWindPlot):
         elif _vec_loc & {'right'} and self.timestamp_location & {'right'}:
             _h_align = {'left'}
         self.vector_location = _v_align | _h_align
-#        loginf("self.timestamp_location=%s self.vector_location=%s" % (self.timestamp_location, self.vector_location))
 
         # get size of the arc to be kept clear for ring labels
         self.ring_label_clear_arc = self.plot_dict.get('ring_label_clear_arc', 30)
@@ -1538,31 +2046,35 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.ring_units = DISTANCE_LOOKUP[self.speed_vec.unit]
 
     def render_plot(self):
-        """Render the trail plot data."""
+        """Render the trail plot."""
 
-        # radius of plot area in pixels
-        plot_radius = self.max_plot_dia / 2
-        # scaling to be applied to calculated vectors
-        scale = plot_radius / self.max_vector_radius
-        # Unfortunately PIL does not allow us to work with layers so we need to
-        # process our data twice; once to plot the 'trail' and a second time to
-        # plot any markers
-
-        # plot the markers
-        if self.marker_type is not None:
+        # do we need to plot anything
+        if self.line_type is not None or self.marker_type is not None:
+            # radius of plot area in pixels
+            plot_radius = self.max_plot_dia / 2
+            # scaling to be applied to calculated vectors
+            scale = plot_radius / self.max_vector_radius
+            # for the first sample the vector components must be set to 0 and the
+            # previous point must be set to the origin
             vec_x = 0
             vec_y = 0
+            last_x = self.origin_x
+            last_y = self.origin_y
+            if self.dir_vec.value[0] is None:
+                last_dir = 0
+            else:
+                last_dir = int((self.dir_vec.value[0] + 180) % 360)
+            last_radius = 0
             # iterate over the samples, ignore the first since we don't know what
             # period (delta) it applies to
             for i in range(1, self.samples):
-                this_dir_vec = self.dir_vec[0][i]
-                this_speed_vec = self.speed_vec[0][i]
-                # ignore any speeds that are 0 or None and any directions that
-                # are None
+                this_dir_vec = self.dir_vec.value[i]
+                this_speed_vec = self.speed_vec.value[i]
+                # ignore any speeds that are 0 or None and any directions that are None
                 if this_speed_vec is None or this_dir_vec is None or this_speed_vec == 0.0:
                     continue
                 # the period in sec the current speed applies to
-                delta = self.time_vec[0][i] - self.time_vec[0][i-1]
+                delta = self.time_vec.value[i] - self.time_vec.value[i - 1]
                 # the corresponding distance
                 dist = this_speed_vec * delta / self.factor
                 # calculate new running vector from centre for this point
@@ -1571,68 +2083,41 @@ class PolarWindTrailPlot(PolarWindPlot):
                 # scale the vector to our polar plot area
                 x = self.origin_x + vec_x * scale
                 y = self.origin_y - vec_y * scale
-                # determine marker color to be used
-                marker_color = self.get_speed_color(self.marker_color,
-                                                    this_speed_vec)
-                # if this is the last point make it different colour if needed
-                if i == self.samples - 1:
-                    if self.end_point_color:
-                        marker_color = self.end_point_color
-                # now draw the markers
-                self.render_marker(x, y, self.marker_size, self.marker_type, marker_color)
-
-        # now plot the lines
-        vec_x = 0
-        vec_y = 0
-        # for the first sample the previous point must be set to the origin
-        last_x = self.origin_x
-        last_y = self.origin_y
-        if self.dir_vec.value[0] is None:
-            last_a = 0
-        else:
-            last_a = int((self.dir_vec.value[0] + 180) % 360)
-        last_r = 0
-        # iterate over the samples, ignore the first since we don't know what
-        # period (delta) it applies to
-        for i in range(1, self.samples):
-            this_dir_vec = self.dir_vec.value[i]
-            this_speed_vec = self.speed_vec.value[i]
-            # ignore any speeds that are 0 or None and any directions that are None
-            if this_speed_vec is None or this_dir_vec is None or this_speed_vec == 0.0:
-                continue
-            # the period in sec the current speed applies to
-            delta = self.time_vec.value[i] - self.time_vec.value[i-1]
-            # the corresponding distance
-            dist = this_speed_vec * delta / self.factor
-            # calculate new running vector from centre for this point
-            vec_x += dist * math.sin(math.radians((this_dir_vec + 180) % 360))
-            vec_y += dist * math.cos(math.radians((this_dir_vec + 180) % 360))
-            # scale the vector to our polar plot area
-            x = self.origin_x + vec_x * scale
-            y = self.origin_y - vec_y * scale
-            radius = math.sqrt(vec_x**2 + vec_y**2) * scale
-            this_a = math.degrees(math.atan2(-vec_y, vec_x)) + 90.0
-            # determine line color to be used
-            line_color = self.get_speed_color(self.line_color,
-                                              this_speed_vec)
-            # draw the line, line type can be 'straight', 'radial' or no line
-            if self.line_type == 'straight':
-                vector = (int(last_x), int(last_y), int(x), int(y))
-                self.draw.line(vector, fill=line_color, width=self.line_width)
-            elif self.line_type == "radial":
-                self.join_curve(last_x, last_y, last_r, last_a,
-                                x, y, radius, this_a,
-                                line_color, self.line_width)
-            last_x = x
-            last_y = y
-            last_a = this_a
-            last_r = radius
-        # That's the last sample done, now we draw final vector if required
-        if self.vector_color is not None:
-            vector = (int(self.origin_x), int(self.origin_y), int(x), int(y))
-            self.draw.line(vector,
-                           fill=self.vector_color,
-                           width=self.line_width)
+                this_radius = math.sqrt(vec_x**2 + vec_y**2) * scale
+                this_dir = math.degrees(math.atan2(-vec_y, vec_x)) + 90.0
+                # determine line color to be used
+                line_color = self.get_speed_color(self.line_color,
+                                                  this_speed_vec)
+                # draw the line, line type can be 'straight', 'radial' or no line
+                if self.line_type == 'straight':
+                    vector = (int(last_x), int(last_y), int(x), int(y))
+                    self.draw.line(vector, fill=line_color, width=self.line_width)
+                elif self.line_type == "radial":
+                    self.join_curve(last_x, last_y, last_radius, last_dir,
+                                    x, y, this_radius, this_dir,
+                                    line_color, self.line_width)
+                # do we need to plot a marker
+                if self.marker_type is not None:
+                    # we do, so get the colour, it's based on speed
+                    marker_color = self.get_speed_color(self.marker_color,
+                                                        this_speed_vec)
+                    # if this is the last point make it a different colour if
+                    # needed
+                    if i == self.samples - 1:
+                        if self.end_point_color:
+                            marker_color = self.end_point_color
+                    # now draw the marker
+                    self.render_marker(x, y, self.marker_size, self.marker_type, marker_color)
+                last_x = x
+                last_y = y
+                last_dir = this_dir
+                last_radius = this_radius
+            # that's the last sample done, now we draw final vector if required
+            if self.vector_color is not None:
+                vector = (int(self.origin_x), int(self.origin_y), int(x), int(y))
+                self.draw.line(vector,
+                               fill=self.vector_color,
+                               width=self.line_width)
 
     def render_vector(self):
         """Render a statement of the net plotted windrun vector."""
@@ -1704,506 +2189,6 @@ class PolarWindTrailPlot(PolarWindPlot):
         """
 
         label_inc = self.max_vector_radius / self.rings
-        return ''.join([str(int(round(label_inc * ring, 0))), self.ring_units])
-
-
-# =============================================================================
-#                         Class PolarWindSpiralPlot
-# =============================================================================
-
-class PolarWindSpiralPlot(PolarWindPlot):
-    """Specialised class to generate a spiral wind plot."""
-
-    def __init__(self, skin_dict, plot_dict):
-        """Initialise a PolarWindSpiralPlot object."""
-
-        # initialise my superclass
-        super(PolarWindSpiralPlot, self).__init__(skin_dict, plot_dict)
-
-        # Display oldest or newest data at centre? Default to oldest.
-        self.centre = self.plot_dict.get('centre', 'oldest')
-
-        # get marker_type, default to None
-        _marker_type = self.plot_dict.get('marker_type')
-        self.marker_type = None if _marker_type == '' else _marker_type
-        # get marker_size, default to '1'
-        self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # Get line_type; available options are 'straight', 'radial' or None.
-        # Default to 'straight'.
-        _line_type = self.plot_dict.get('line_type', 'straight').lower()
-        # Handle the None case. If the string 'None' is specified (in any case
-        # combination) then accept that as python None. Also use None if the
-        # line_type config option has been listed but with no value.
-        _line_type = None if _line_type == '' or _line_type == 'none' else _line_type
-        # filter any invalid line types replacing them with 'straight'
-        if _line_type not in (None, 'straight', 'radial'):
-            # add a debug log entry
-            logdbg("Invalid line type '%s' specified for spiral plot. "
-                   "Defaulting to 'straight'" % (_line_type, ))
-            # and default to 'straight'
-            _line_type = 'straight'
-        self.line_type = _line_type
-        # get line_width, default to 1
-        self.line_width = int(self.plot_dict.get('line_width', 1))
-        # Get line_color, can be 'speed', 'age' or a valid color. Default to
-        # 'speed'.
-        self.line_color = self.plot_dict.get('line_color', 'speed')
-        if self.line_color not in ['speed', 'age']:
-            self.line_color = parse_color(self.line_color, 'speed')
-        # Get marker_color, can be 'speed' or a valid color. Default to 'speed'.
-        self.marker_color = self.plot_dict.get('marker_color', 'speed')
-        if self.marker_color != 'speed':
-            self.marker_color = parse_color(self.marker_color, 'speed')
-        # get axis label format
-        self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
-
-        # initialise some properties for use later
-        self.x = None
-        self.y = None
-        self.radius = None
-
-    def render(self, title):
-        """Main entry point to generate a spiral polar wind plot."""
-
-        # get an Image object for our plot
-        image = self.get_image()
-        # get a Draw object on which to render the plot
-        self.draw = ImageDraw.Draw(image)
-        # get handles for the fonts we will use
-        self.get_font_handles()
-        # set up the legend
-        self.set_legend()
-        # set up the plot title
-        self.set_title(title)
-        # set the speed list boundary values
-        self.set_speed_list()
-        # set up the background polar grid
-        self.set_polar_grid()
-        # set up the spiral plot
-        self.set_plot()
-        # render the title
-        self.render_title()
-        # render the legend
-        self.render_legend()
-        # render the polar grid
-        self.render_polar_grid()
-        # render the timestamp label
-        self.render_timestamp()
-        # render the spiral direction label
-        self.render_spiral_direction_label()
-        # finally, render the plot
-        self.render_plot()
-        # return the completed plot image
-        return image
-
-    def set_plot(self):
-        """Set up the spiral plot render.
-
-        Perform any calculations or set any properties required to render the
-        polar spiral plot.
-        """
-
-        # Determine which quadrant will contain the ring labels. Ring labels
-        # are displayed on a 45 degree radial in one of the 4 quadrants.
-        # Preferred quadrant is SE (aka lower right or quadrant 1).
-
-        # TODO. Do we need some logic in making this choice or leave it arbitrary?
-        # Use the default SE quadrant
-        self.label_dir = 1
-
-    def render_plot(self):
-        """Render the spiral plot data."""
-
-        # radius of plot area in pixels
-        plot_radius = self.max_plot_dia / 2
-
-        # unfortunately PIL does not allow us to work with layers so we need to
-        # process our data twice; once to plot the 'trail' and a second time to
-        # plot any markers
-
-        # TODO. We should be able to combine the line and marker plot routines
-        # plot the spiral line
-        last_x = self.origin_x
-        last_y = self.origin_y
-        last_a = int(0)
-        last_r = int(0)
-        # work out our first and last samples based on the direction of the
-        # spiral
-        if self.centre == "newest":
-            start, stop, step = self.samples-1, -1, -1
-        else:
-            start, stop, step = 0, self.samples, 1
-        # iterate over the samples starting from the centre of the spiral
-        for i in range(start, stop, step):
-            this_dir_vec = self.dir_vec.value[i]
-            this_speed_vec = self.speed_vec.value[i]
-            # Calculate radius for this sample. Note assumes equal time periods
-            # between samples
-            # TODO. radius should be a function of time so as to better cope with gaps in data
-            if self.centre == "newest":
-                scale = self.samples - 1 - i
-            else:
-                scale = i
-            self.radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
-            # if the current direction sample is not None then plot it
-            # otherwise skip it
-            if this_dir_vec is not None:
-                # bearing for this sample
-                this_a = int(this_dir_vec)
-                # calculate plot coords for this sample
-                self.x = self.origin_x + self.radius * math.sin(math.radians(this_dir_vec))
-                self.y = self.origin_y - self.radius * math.cos(math.radians(this_dir_vec))
-                # if this is the first sample then the last point must be set
-                # to this point
-                if i == start:
-                    last_x = self.x
-                    last_y = self.y
-                    last_a = this_a
-                    last_r = self.radius
-                # determine line color to be used
-                line_color = self.get_speed_color(self.line_color,
-                                                  this_speed_vec)
-                # draw the line; line type can be 'straight', 'radial' or None
-                # for no line
-                if self.line_type == "straight":
-                    vector = (int(last_x), int(last_y), int(self.x), int(self.y))
-                    self.draw.line(vector, fill=line_color, width=self.line_width)
-                elif self.line_type == "radial":
-                    self.join_curve(last_x, last_y, last_r, last_a,
-                                    self.x, self.y, self.radius, this_a,
-                                    line_color, self.line_width)
-                # this sample is complete, save it as the 'last' sample
-                last_x = self.x
-                last_y = self.y
-                last_a = this_a
-                last_r = self.radius
-
-        # plot the markers if required
-        if self.marker_type is not None:
-            # iterate over the samples starting from the centre of the spiral
-            for i in range(start, stop, step):
-                this_dir_vec = self.dir_vec.value[i]
-                this_speed_vec = self.speed_vec.value[i]
-                # Calculate radius for this sample. Note assumes equal time periods
-                # between samples
-                # TODO. radius should be a function of time so as to better cope with gaps in data
-                if self.centre == "newest":
-                    scale = self.samples - 1 - i
-                else:
-                    scale = i
-                self.radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
-                # if the current direction sample is not None then plot it
-                # otherwise skip it
-                if this_dir_vec is not None:
-                    # calculate plot coords for this sample
-                    self.x = self.origin_x + self.radius * math.sin(math.radians(this_dir_vec))
-                    self.y = self.origin_y - self.radius * math.cos(math.radians(this_dir_vec))
-                    # determine line color to be used
-                    marker_color = self.get_speed_color(self.line_color,
-                                                        this_speed_vec)
-                    # now draw the markers
-                    self.render_marker(self.x, self.y, self.marker_size, self.marker_type, marker_color)
-
-    def get_ring_label(self, ring):
-        """Get the label to be displayed on the polar plot rings.
-
-        Each polar plot ring is labelled. This label can be a percentage, a
-        value or some other text. The get_ring_label() method returns the label
-        to be used on a given ring. Rings are equally spaced and numbered from 1
-        (inside) to outside. A value of None will result in no label
-        being displayed for the ring concerned.
-
-        Input:
-            ring: ring number for which a label is required, will be from
-                  1 to the number of rings used inclusive
-
-        Returns:
-            label text for the given ring number
-        """
-
-        # determine which sample will fall on the specified ring and extract
-        # its timestamp
-        if self.centre == "newest":
-            sample = int(round((self.samples - 1) * (self.rings - ring) / self.rings))
-        else:
-            sample = int(round((self.samples - 1) * ring / self.rings))
-        # get the sample ts as a datetime object
-        _dt = datetime.datetime.fromtimestamp(self.time_vec.value[sample])
-        # return the formatted time
-        return _dt.strftime(self.axis_label).strip()
-
-    def render_spiral_direction_label(self):
-        """Render label indicating direction of the spiral."""
-
-        # Construct the spiral direction label text. The text depends on
-        # whether the newest or oldest samples are in the centre.
-        if self.centre == "newest":
-            # newest in the center
-            _label_text = "Newest (%s) in centre" % (self.get_ring_label(0))
-        else:
-            # oldest in the center, include the date of the oldest
-            _label_text = "Oldest (%s) in center" % (self.get_ring_label(0))
-        # get the size of the label
-        width, height = self.draw.textsize(_label_text, font=self.label_font)
-        # Now locate the label. We follow the vertical location of the
-        # timestamp label but we render on the opposite side of the plot so as
-        # to not overwrite the timestamp label. If there is no timestamp label
-        # then default to the bottom left.
-        if self.timestamp_location is not None:
-            # start off using the same vertical alignment as the timestamp
-            # label
-            same_vert_align = True
-            if 'left' in self.timestamp_location:
-                # timestamp is left so we go right
-                x = self.image_width - self.plot_border - width
-            elif ('center' in self.timestamp_location) or ('centre' in self.timestamp_location):
-                # We cannot use the same vertical alignment as the timestamp
-                # label - we can't fit. So we use the same horizontal alignment
-                # (centre) but the opposite vertical alignment.
-                same_vert_align = False
-                x = self.origin_x - width / 2
-            else:
-                # it's not left or centre so it must be right, so we go left
-                x = self.plot_border
-            if 'top' in self.timestamp_location and same_vert_align or \
-                    'bottom' in self.timestamp_location and not same_vert_align:
-                # we are using the top
-                y = self.plot_border + height
-            else:
-                # otherwise we go bottom
-                y = self.image_height - self.plot_border - height
-        else:
-            # there is no timestamp being displayed so we are free to use
-            # anywhere, default to bottom right
-            x = self.image_width - self.plot_border - width
-            y = self.image_height - self.plot_border - height
-        # render the label
-        self.draw.text((x, y), _label_text,
-                       fill=self.legend_font_color,
-                       font=self.legend_font)
-
-
-# =============================================================================
-#                        Class PolarWindScatterPlot
-# =============================================================================
-
-class PolarWindScatterPlot(PolarWindPlot):
-    """Specialised class to generate a windrose plot."""
-
-    def __init__(self, skin_dict, plot_dict):
-        """Initialise a PolarWindScatterPlot object."""
-
-        # initialise my superclass
-        super(PolarWindScatterPlot, self).__init__(skin_dict, plot_dict)
-
-        # we don't display a legend on a scatter plot so force legend to False
-        self.legend = False
-        #  Get marker_type, default to  None
-        _marker_type = self.plot_dict.get('marker_type')
-        self.marker_type = None if _marker_type == '' else _marker_type
-        # get marker_size, default to '1'
-        self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # get line_type, default to None
-        # TODO. This gives a default of no line, is that what we want?
-        self.line_type = self.plot_dict.get('line_type')
-        self.line_type = None if self.line_type == '' else self.line_type
-        # get line_width, default to 1
-        self.line_width = int(self.plot_dict.get('line_width', 1))
-        # Get line_color, can be 'age' or a valid color. Default to 'age'.
-        _line_color = self.plot_dict.get('line_color', 'age')
-        # we have a line color but is it valid or a type we know about
-        if _line_color in ['age']:
-            # it's a color style I understand
-            self.line_color = _line_color
-        else:
-            _parsed = parse_color(_line_color, None)
-            if _parsed is not None:
-                # we have a valid supported color
-                self.line_color = _parsed
-            else:
-                # it's an invalid color so use 'age' instead and log it
-                self.line_color = 'age'
-                logdbg("Unknown scatter plot line color '%s', using 'age' instead" % (_line_color, ))
-
-        # get colors for oldest and newest points
-        _oldest_color = self.plot_dict.get('oldest_color')
-        self.oldest_color = parse_color(_oldest_color, '#F7FAFF')
-        _newest_color = self.plot_dict.get('newest_color')
-        self.newest_color = parse_color(_newest_color, '#00368E')
-
-        # get axis label format
-        self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
-
-        # initialise some properties for use later
-        self.ring_units = None
-
-    def render(self, title):
-        """Main entry point to generate a scatter polar wind plot."""
-
-        # get an Image object for our plot
-        image = self.get_image()
-        # get a Draw object on which to render the plot
-        self.draw = ImageDraw.Draw(image)
-        # get handles for the fonts we will use
-        self.get_font_handles()
-        # set up the plot title
-        self.set_title(title)
-        # set up the background polar grid
-        self.set_polar_grid()
-        # set up the spiral plot
-        self.set_plot()
-        # render the title
-        self.render_title()
-        # render the polar grid
-        self.render_polar_grid()
-        # render the timestamp label
-        self.render_timestamp()
-        # finally, render the plot
-        self.render_plot()
-        # return the completed plot image
-        return image
-
-    def set_plot(self):
-        """Set up the scatter plot render.
-
-        Perform any calculations or set any properties required to render the
-        polar scatter plot.
-        """
-
-        # Determine which quadrant will contain the ring labels. Ring labels
-        # are displayed on a 45 degree radial in one of the 4 quadrants.
-        # Preferred quadrant is SE (aka lower right or quadrant 1) but use a
-        # different quadrant if there is a lot of data in SE that may be
-        # obscured by the labels. Do a simple check of how many points are in
-        # the SE quadrant and if more than 30% of our samples then chose
-        # another quadrant that has less than 30% of the samples. Quadrants are
-        # checked in order of preference according to contents of
-        # PREFERRED_LABEL_QUADRANTS.
-
-        # initialise a list to holds the sample counts for quadrant 0 to 3
-        quadrant_count = [0 for x in range(4)]
-        # iterate over our samples assigning each to a particular quadrant
-        for i in range(0, self.samples):
-            # get the direction component of the sample vector
-            _dir_vec = self.dir_vec.value[i]
-            # increment the count for the quadrant that will contain the sample
-            quadrant_count[int(_dir_vec // 90)] += 1
-        # now choose the quadrant for our labels, default to SE (quadrant 1)
-        label_dir = 1
-        # iterate over our quadrants in preferred order of use
-        for q in PREFERRED_LABEL_QUADRANTS:
-            # take the first quadrant that has < 30% of the samples
-            if quadrant_count[q] <= 0.3 * self.samples:
-                label_dir = q
-                break
-        # assign the chosen quadrant to a property
-        self.label_dir = label_dir
-
-        # determine the 'unit' label to use on ring labels
-        self.ring_units = SPEED_LOOKUP[self.speed_vec.unit]
-
-    def render_plot(self):
-        """Render the scatter plot data."""
-
-        # radius of plot area in pixels
-        plot_radius = self.max_plot_dia / 2
-
-        # unfortunately PIL does not allow us to work with layers so we need to
-        # process our data twice; once to plot the scatter line and a second
-        # time to plot any markers
-
-        # plot the scatter line if required
-        if self.line_type is not None:
-            # initialise values for the last plot point, use None as there is
-            # no last point the first time around
-            last_x = last_y = last_a = last_r = None
-            # iterate over the samples
-            for i in range(0, self.samples):
-                this_dir_vec = self.dir_vec.value[i]
-                this_speed_vec = self.speed_vec.value[i]
-                # we only plot if we have values for speed and dir
-                if this_speed_vec is not None and this_dir_vec is not None:
-                    # calculate the 'radius' in pixels of the vector
-                    # representing the sample to be plotted
-                    radius = plot_radius * this_speed_vec / self.max_speed_range
-                    # calculate the x and y coords of the sample to be plotted
-                    x = int(self.origin_x + radius * math.sin(math.radians(this_dir_vec)))
-                    y = int(self.origin_y - radius * math.cos(math.radians(this_dir_vec)))
-                    # if this is the first sample we can skip it as we have
-                    # nothing to plot from
-                    if last_r is not None:
-                        # determine the line color to be used
-                        if self.line_color == "age":
-                            # color is dependent on the age of the sample so
-                            # calculate a transition color
-                            line_color = color_trans(self.oldest_color,
-                                                     self.newest_color,
-                                                     i / (self.samples - 1.0))
-                        else:
-                            # fixed line color
-                            line_color = self.line_color
-                        # draw the line, line type can be 'straight', 'spoke',
-                        # 'radial' or no line
-                        if self.line_type == "straight":
-                            xy = (last_x, last_y, x, y)
-                            self.draw.line(xy, fill=line_color, width=self.line_width)
-                        elif self.line_type == "spoke":
-                            spoke = (self.origin_x, self.origin_y, x, y)
-                            self.draw.line(spoke, fill=line_color, width=self.line_width)
-                        elif self.line_type == "radial":
-                            self.join_curve(last_x, last_y, last_r, last_a,
-                                            x, y, radius, this_dir_vec,
-                                            line_color, self.line_width)
-                    # this sample is complete, save the plot values as the
-                    # 'last' sample
-                    last_x = x
-                    last_y = y
-                    last_a = this_dir_vec
-                    last_r = radius
-
-        # plot the markers if required
-        if self.marker_type is not None:
-            # iterate over the samples
-            for i in range(0, self.samples):
-                this_dir_vec = self.dir_vec.value[i]
-                this_speed_vec = self.speed_vec.value[i]
-                # we only plot if we have values for speed and dir
-                if this_speed_vec is not None and this_dir_vec is not None:
-                    # calculate the 'radius' in pixels of the vector
-                    # representing the sample to be plotted
-                    radius = plot_radius * this_speed_vec / self.max_speed_range
-                    # calculate the x and y coords of the sample to be plotted
-                    x = self.origin_x + radius * math.sin(math.radians(this_dir_vec))
-                    y = self.origin_y - radius * math.cos(math.radians(this_dir_vec))
-                    # determine the marker color to be used
-                    if self.line_color == "age":
-                        marker_color = color_trans(self.oldest_color,
-                                                   self.newest_color,
-                                                   i / (self.samples - 1.0))
-                    else:
-                        marker_color = self.line_color
-                    # now draw the markers
-                    self.render_marker(x, y, self.marker_size,
-                                       self.marker_type, marker_color)
-
-    def get_ring_label(self, ring):
-        """Get the label to be displayed on the polar plot rings.
-
-        Each polar plot ring is labelled. This label can be a percentage, a
-        value or some other text. The get_ring_label() method returns the label
-        to be used on a given ring. Rings are equally spaced and numbered from 1
-        (inside) to outside. A value of None will result in no label
-        being displayed for the ring concerned.
-
-        Input:
-            ring: ring number for which a label is required, will be from
-                  1 to the number of rings used inclusive
-
-        Returns:
-            label text for the given ring number
-        """
-
-        label_inc = self.max_speed_range / self.rings
         return ''.join([str(int(round(label_inc * ring, 0))), self.ring_units])
 
 
