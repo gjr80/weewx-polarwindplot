@@ -1389,9 +1389,21 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # get line_type, default to None
-        self.line_type = self.plot_dict.get('line_type')
-        self.line_type = None if self.line_type == '' else self.line_type
+        # Get line_type; available options are 'straight', 'radial' or None.
+        # Default to 'straight'.
+        _line_type = self.plot_dict.get('line_type', 'straight').lower()
+        # Handle the None case. If the string 'None' is specified (in any case
+        # combination) then accept that as python None. Also use None if the
+        # line_type config option has been listed but with no value.
+        _line_type = None if _line_type == '' or _line_type == 'none' else _line_type
+        # filter any invalid line types replacing them with 'straight'
+        if _line_type not in (None, 'straight', 'radial'):
+            # add a debug log entry
+            logdbg("Invalid line type '%s' specified for spiral plot. "
+                   "Defaulting to 'straight'" % (_line_type, ))
+            # and default to 'straight'
+            _line_type = 'straight'
+        self.line_type = _line_type
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
 
@@ -2039,10 +2051,21 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
         self.marker_size = int(self.plot_dict.get('marker_size', 1))
-        # get line_type, default to None
-        # TODO. This gives a default of no line, is that what we want?
-        self.line_type = self.plot_dict.get('line_type')
-        self.line_type = None if self.line_type == '' else self.line_type
+        # Get line_type; available options are 'straight', 'spoke', 'radial' or
+        # None. Default to 'straight'.
+        _line_type = self.plot_dict.get('line_type', 'straight').lower()
+        # Handle the None case. If the string 'None' is specified (in any case
+        # combination) then accept that as python None. Also use None if the
+        # line_type config option has been listed but with no value.
+        _line_type = None if _line_type == '' or _line_type == 'none' else _line_type
+        # filter any invalid line types replacing them with 'straight'
+        if _line_type not in (None, 'straight', 'spoke', 'radial'):
+            # add a debug log entry
+            logdbg("Invalid line type '%s' specified for spiral plot. "
+                   "Defaulting to 'straight'" % (_line_type, ))
+            # and default to 'straight'
+            _line_type = 'straight'
+        self.line_type = _line_type
         # get line_width, default to 1
         self.line_width = int(self.plot_dict.get('line_width', 1))
         # Get line_color, can be 'age' or a valid color. Default to 'age'.
