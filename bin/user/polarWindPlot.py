@@ -1701,64 +1701,66 @@ class PolarWindSpiralPlot(PolarWindPlot):
     def render_plot(self):
         """Render the spiral plot."""
 
-        # radius of plot area in pixels
-        plot_radius = self.max_plot_dia / 2
-        # we start from the origin so set our 'last' values
-        last_x = self.origin_x
-        last_y = self.origin_y
-        last_dir = 0
-        last_radius = 0
-        # work out our first and last samples based on the direction of the
-        # spiral
-        if self.centre == "newest":
-            start, stop, step = self.samples-1, -1, -1
-        else:
-            start, stop, step = 0, self.samples, 1
-        # iterate over the samples starting from the centre of the spiral
-        for i in range(start, stop, step):
-            this_dir_vec = self.dir_vec.value[i]
-            this_speed_vec = self.speed_vec.value[i]
-            # Calculate radius for this sample. Note assumes equal time periods
-            # between samples
+        # do we need to plot anything
+        if self.line_type is not None or self.marker_type is not None:
+            # radius of plot area in pixels
+            plot_radius = self.max_plot_dia / 2
+            # we start from the origin so set our 'last' values
+            last_x = self.origin_x
+            last_y = self.origin_y
+            last_dir = 0
+            last_radius = 0
+            # work out our first and last samples based on the direction of the
+            # spiral
             if self.centre == "newest":
-                scale = self.samples - 1 - i
+                start, stop, step = self.samples-1, -1, -1
             else:
-                scale = i
-            # TODO. radius should be a function of time so as to better cope with gaps in data
-            this_radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
-            # if the current direction sample is not None then plot it
-            # otherwise skip it
-            if this_dir_vec is not None:
-                # bearing for this sample
-                this_dir = int(this_dir_vec)
-                # calculate plot coords for this sample
-                x = self.origin_x + this_radius * math.sin(math.radians(this_dir_vec))
-                y = self.origin_y - this_radius * math.cos(math.radians(this_dir_vec))
-                # determine line color to be used
-                line_color = self.get_speed_color(self.line_color,
-                                                  this_speed_vec)
-                # draw the line; line type can be 'straight', 'radial' or None
-                # for no line
-                if self.line_type == "straight":
-                    vector = (int(last_x), int(last_y), int(x), int(y))
-                    self.draw.line(vector, fill=line_color, width=self.line_width)
-                elif self.line_type == "radial":
-                    self.join_curve(last_x, last_y, last_radius, last_dir,
-                                    x, y, this_radius, this_dir,
-                                    line_color, self.line_width)
-                # do we need to plot a marker
-                if self.marker_type is not None:
-                    # we do, so get the colour, it's based on speed
-                    marker_color = self.get_speed_color(self.line_color,
-                                                        this_speed_vec)
-                    # now draw the marker
-                    self.render_marker(x, y, self.marker_size,
-                                       self.marker_type, marker_color)
-                # this sample is complete, save it as the 'last' sample
-                last_x = x
-                last_y = y
-                last_dir = this_dir
-                last_radius = this_radius
+                start, stop, step = 0, self.samples, 1
+            # iterate over the samples starting from the centre of the spiral
+            for i in range(start, stop, step):
+                this_dir_vec = self.dir_vec.value[i]
+                this_speed_vec = self.speed_vec.value[i]
+                # Calculate radius for this sample. Note assumes equal time periods
+                # between samples
+                if self.centre == "newest":
+                    scale = self.samples - 1 - i
+                else:
+                    scale = i
+                # TODO. radius should be a function of time so as to better cope with gaps in data
+                this_radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
+                # if the current direction sample is not None then plot it
+                # otherwise skip it
+                if this_dir_vec is not None:
+                    # bearing for this sample
+                    this_dir = int(this_dir_vec)
+                    # calculate plot coords for this sample
+                    x = self.origin_x + this_radius * math.sin(math.radians(this_dir_vec))
+                    y = self.origin_y - this_radius * math.cos(math.radians(this_dir_vec))
+                    # determine line color to be used
+                    line_color = self.get_speed_color(self.line_color,
+                                                      this_speed_vec)
+                    # draw the line; line type can be 'straight', 'radial' or None
+                    # for no line
+                    if self.line_type == "straight":
+                        vector = (int(last_x), int(last_y), int(x), int(y))
+                        self.draw.line(vector, fill=line_color, width=self.line_width)
+                    elif self.line_type == "radial":
+                        self.join_curve(last_x, last_y, last_radius, last_dir,
+                                        x, y, this_radius, this_dir,
+                                        line_color, self.line_width)
+                    # do we need to plot a marker
+                    if self.marker_type is not None:
+                        # we do, so get the colour, it's based on speed
+                        marker_color = self.get_speed_color(self.line_color,
+                                                            this_speed_vec)
+                        # now draw the marker
+                        self.render_marker(x, y, self.marker_size,
+                                           self.marker_type, marker_color)
+                    # this sample is complete, save it as the 'last' sample
+                    last_x = x
+                    last_y = y
+                    last_dir = this_dir
+                    last_radius = this_radius
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
