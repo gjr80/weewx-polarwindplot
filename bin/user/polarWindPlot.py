@@ -1,5 +1,5 @@
 """
-polarWindPlot.py
+polarwindplot.py
 
 A WeeWX generator to generate various polar wind plots.
 
@@ -20,7 +20,7 @@ Various parameters including the plot type, period, source data field, units
 of measure and colours can be controlled by the user through various
 configuration options similar to other image generators.
 
-Copyright (c) 2017-2012   Gary Roderick           gjroderick<at>gmail.com
+Copyright (c) 2017-2022   Gary Roderick           gjroderick<at>gmail.com
                           Neil Trimboy            neil.trimboy<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
@@ -35,10 +35,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.0                                      Date: ?? ??????? 2022
+Version: 0.1.0b1                                    Date: 16 January 2022
 
 Revision History
-   ?? ??????? 2022      v0.1.0
+   16 January 2022      v0.1.0
        -   initial release
 """
 # TODO: Testing. Test trail plot net vector positioning for various timestamp positions
@@ -100,7 +100,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.0'
+POLAR_WIND_PLOT_VERSION = '0.1.0b1'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NO_RINGS = 5
@@ -304,13 +304,13 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
         plot_type = plot_dict.get('plot_type', 'rose').lower()
         # create and return the relevant polar plot object
         if plot_type == 'rose':
-            return PolarWindRosePlot(self.skin_dict, plot_dict)
+            return PolarWindRosePlot(self.skin_dict, plot_dict, self.formatter)
         elif plot_type == 'trail':
-            return PolarWindTrailPlot(self.skin_dict, plot_dict)
+            return PolarWindTrailPlot(self.skin_dict, plot_dict, self.formatter)
         elif plot_type == 'spiral':
-            return PolarWindSpiralPlot(self.skin_dict, plot_dict)
+            return PolarWindSpiralPlot(self.skin_dict, plot_dict, self.formatter)
         elif plot_type == 'scatter':
-            return PolarWindScatterPlot(self.skin_dict, plot_dict)
+            return PolarWindScatterPlot(self.skin_dict, plot_dict, self.formatter)
         # if we made it here we don't know about the specified plot so raise
         raise weewx.UnsupportedFeature('Unsupported polar wind plot type: %s' % plot_type)
 
@@ -349,8 +349,6 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
         Returns:
             True if plot is to be generated, False if plot is to be skipped.
         """
-        # TODO. Remove following line (return False) before release
-        return False
 
         # Images without a period must be skipped every time and a syslog
         # entry added. This should never occur, but....
@@ -389,8 +387,11 @@ class PolarWindPlot(object):
     render() method must be defined for each type of plot.
     """
 
-    def __init__(self, skin_dict, plot_dict):
+    def __init__(self, skin_dict, plot_dict, formatter):
         """Initialise an instance of PolarWindPlot."""
+
+        # save the formatter
+        self.formatter = formatter
 
         # get config dict for polar plots
         self.plot_dict = plot_dict
@@ -1127,11 +1128,11 @@ class PolarWindRosePlot(PolarWindPlot):
     longest spoke showing the wind direction with the greatest frequency.
     """
 
-    def __init__(self, skin_dict, plot_dict):
+    def __init__(self, skin_dict, plot_dict, formatter):
         """Initialise a PolarWindRosePlot object."""
 
         # initialise my superclass
-        super(PolarWindRosePlot, self).__init__(skin_dict, plot_dict)
+        super(PolarWindRosePlot, self).__init__(skin_dict, plot_dict, formatter)
 
         # get petal width, if not defined then use the default
         self.petals = int(self.plot_dict.get('petals', DEFAULT_NO_PETALS))
@@ -1377,11 +1378,11 @@ class PolarWindScatterPlot(PolarWindPlot):
     results in a single curved line that joins all plotted points in time order.
     """
 
-    def __init__(self, skin_dict, plot_dict):
+    def __init__(self, skin_dict, plot_dict, formatter):
         """Initialise a PolarWindScatterPlot object."""
 
         # initialise my superclass
-        super(PolarWindScatterPlot, self).__init__(skin_dict, plot_dict)
+        super(PolarWindScatterPlot, self).__init__(skin_dict, plot_dict, formatter)
 
         # we don't display a legend on a scatter plot so force legend to False
         self.legend = False
@@ -1606,11 +1607,11 @@ class PolarWindSpiralPlot(PolarWindPlot):
     the plot area.
     """
 
-    def __init__(self, skin_dict, plot_dict):
+    def __init__(self, skin_dict, plot_dict, formatter):
         """Initialise a PolarWindSpiralPlot object."""
 
         # initialise my superclass
-        super(PolarWindSpiralPlot, self).__init__(skin_dict, plot_dict)
+        super(PolarWindSpiralPlot, self).__init__(skin_dict, plot_dict, formatter)
 
         # Display oldest or newest data at centre? Default to oldest.
         self.centre = self.plot_dict.get('centre', 'oldest')
@@ -1859,11 +1860,11 @@ class PolarWindTrailPlot(PolarWindPlot):
     line from the origin to the outer edge of the plot.
     """
 
-    def __init__(self, skin_dict, plot_dict):
+    def __init__(self, skin_dict, plot_dict, formatter):
         """Initialise a PolarWindTrailPlot object."""
 
         # initialise my superclass
-        super(PolarWindTrailPlot, self).__init__(skin_dict, plot_dict)
+        super(PolarWindTrailPlot, self).__init__(skin_dict, plot_dict, formatter)
 
         # get marker_type, default to None
         _marker_type = self.plot_dict.get('marker_type')
