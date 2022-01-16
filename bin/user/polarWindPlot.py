@@ -9,10 +9,12 @@ files suitable for publishing on a web page, inclusion in a WeeWX template or
 for use elsewhere. The Polar Wind Plot Image Generator can generate the
 following polar wind plots:
 
--   wind rose
--   wind scatter
--   wind spiral
--   wind trail
+-   Wind rose. Traditional wind rose showing dominant wind directions and speed
+               ranges.
+-   Scatter.   Plot showing variation in wind speed and direction over time.
+-   Spiral.    Plot showing wind direction over time with colour coded wind
+               speed.
+-   Trail.     Plot showing vector wind run over time.
 
 Various parameters including the plot type, period, source data field, units
 of measure and colours can be controlled by the user through various
@@ -55,7 +57,7 @@ except ImportError:
     import ImageColor
     import ImageDraw
 
-# Compatibility shims
+# compatibility shims
 import six
 
 # WeeWX imports
@@ -124,14 +126,14 @@ PREFERRED_LABEL_QUADRANTS = [1, 2, 0, 3]
 class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
     """Class used to control generation of polar wind plots.
 
-    The PolarWindPlotGenerator class is a customised report generator that
+    The PolarWindPlotGenerator class is a customised image generator that
     produces polar wind plots based upon WeeWX archive data. The generator
     produces image files that may be included in a web page, a WeeWX web page
     template or elsewhere as required.
 
     The polar wind plot characteristics may be controlled through option
-    settings in the [StdReport] [[PolarWindPlotGenerator]] section of
-    weewx.conf.
+    settings in the relevant skin.conf or under the relevant report stanza in
+    the [StdReport] section of weewx.conf.
     """
 
     def __init__(self, config_dict, skin_dict, gen_ts, first_run, stn_info,
@@ -1424,8 +1426,6 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.vector_color = parse_color(self.plot_dict.get('vector_color', 'red'),
                                         'red')
 
-        # TODO. Legacy comment. Not sure about the 'rest of the points comment, does this mean marker_color? (which is not default None)
-        # TODO inconsistent use of None or "none" in code/skin for these colours.modes that can take different values including none
         # get end_point_color, default to None
         self.end_point_color = parse_color(self.plot_dict.get('end_point_color', None),
                                            None)
@@ -1446,7 +1446,6 @@ class PolarWindTrailPlot(PolarWindPlot):
         elif _vec_loc & {'right'} and self.timestamp_location & {'right'}:
             _h_align = {'left'}
         self.vector_location = _v_align | _h_align
-#        loginf("self.timestamp_location=%s self.vector_location=%s" % (self.timestamp_location, self.vector_location))
 
         # get size of the arc to be kept clear for ring labels
         self.ring_label_clear_arc = self.plot_dict.get('ring_label_clear_arc', 30)
@@ -1912,37 +1911,17 @@ class PolarWindSpiralPlot(PolarWindPlot):
                     self.join_curve(last_x, last_y, last_r, last_a,
                                     self.x, self.y, self.radius, this_a,
                                     line_color, self.line_width)
+                # plot the marker if required
+                if self.marker_type is not None:
+                    marker_color = self.get_speed_color(self.line_color,
+                                                        this_speed_vec)
+                    # now draw the marker
+                    self.render_marker(self.x, self.y, self.marker_size, self.marker_type, marker_color)
                 # this sample is complete, save it as the 'last' sample
                 last_x = self.x
                 last_y = self.y
                 last_a = this_a
                 last_r = self.radius
-
-        # plot the markers if required
-        if self.marker_type is not None:
-            # iterate over the samples starting from the centre of the spiral
-            for i in range(start, stop, step):
-                this_dir_vec = self.dir_vec.value[i]
-                this_speed_vec = self.speed_vec.value[i]
-                # Calculate radius for this sample. Note assumes equal time periods
-                # between samples
-                # TODO. radius should be a function of time so as to better cope with gaps in data
-                if self.centre == "newest":
-                    scale = self.samples - 1 - i
-                else:
-                    scale = i
-                self.radius = scale * plot_radius/(self.samples - 1) if self.samples > 1 else 0.0
-                # if the current direction sample is not None then plot it
-                # otherwise skip it
-                if this_dir_vec is not None:
-                    # calculate plot coords for this sample
-                    self.x = self.origin_x + self.radius * math.sin(math.radians(this_dir_vec))
-                    self.y = self.origin_y - self.radius * math.cos(math.radians(this_dir_vec))
-                    # determine line color to be used
-                    marker_color = self.get_speed_color(self.line_color,
-                                                        this_speed_vec)
-                    # now draw the markers
-                    self.render_marker(self.x, self.y, self.marker_size, self.marker_type, marker_color)
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
