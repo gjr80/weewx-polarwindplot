@@ -397,8 +397,8 @@ class PolarWindPlot(object):
         self.plot_dict = plot_dict
 
         # Set image attributes
-        self.image_width = int(self.plot_dict.get('image_width'))
-        self.image_height = int(self.plot_dict.get('image_height'))
+        self.image_width = int(self.plot_dict.get('image_width', 300))
+        self.image_height = int(self.plot_dict.get('image_height', 180))
         _image_back_box_color = self.plot_dict.get('image_background_box_color')
         self.image_back_box_color = parse_color(_image_back_box_color, '#96C6F5')
         _image_back_circle_color = self.plot_dict.get('image_background_circle_color')
