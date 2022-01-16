@@ -1117,7 +1117,13 @@ class PolarWindPlot(object):
 # =============================================================================
 
 class PolarWindRosePlot(PolarWindPlot):
-    """Specialised class to generate a polar wind rose plot."""
+    """Specialised class to generate a polar wind rose plot.
+
+    The polar wind rose shows the frequency of winds over a period of time by
+    wind direction with colour bands showing wind speed ranges. The plot
+    results in a number of multi-coloured spokes with the direction of the
+    longest spoke showing the wind direction with the greatest frequency.
+    """
 
     def __init__(self, skin_dict, plot_dict):
         """Initialise a PolarWindRosePlot object."""
@@ -1359,7 +1365,18 @@ class PolarWindRosePlot(PolarWindPlot):
 # =============================================================================
 
 class PolarWindTrailPlot(PolarWindPlot):
-    """Specialised class to generate a wind trail plot."""
+    """Specialised class to generate a wind trail plot.
+
+
+    The wind trail plot shows a polar representation of windrun over a period
+    of time. The plot starts at the origin of the polar plot with subsequent
+    points plotted based on the windrun and direction relative to the last
+    point. The most recent point is plotted on outer edge of the polar plot.
+    The location of the most recent point gives the overall vector windrun
+    (distance and direction) during the plot period. The plotted points may be
+    optionally connect by a line. The plot typically results in a single curved
+    line from the origin to the outer edge of the plot.
+    """
 
     def __init__(self, skin_dict, plot_dict):
         """Initialise a PolarWindTrailPlot object."""
@@ -1712,7 +1729,18 @@ class PolarWindTrailPlot(PolarWindPlot):
 # =============================================================================
 
 class PolarWindSpiralPlot(PolarWindPlot):
-    """Specialised class to generate a spiral wind plot."""
+    """Specialised class to generate a spiral wind plot.
+
+    The wind spiral plot shows the wind speed and direction over over a period
+    of time. The plot consists of a single line starting from the origin of the
+    polar plot and ending at the outer edge of the plot area. Wind speed is
+    indicated by the colour of the line and wind direction by the polar plot
+    angle. The plot may place the oldest entry at the origin and the most
+    recent entry at the outer edge or it may place the most recent entry at the
+    origin and the oldest entry at the outer edge. The plot typically results
+    in a single curved line that spirals from the origin to the outer edge of
+    the plot area.
+    """
 
     def __init__(self, skin_dict, plot_dict):
         """Initialise a PolarWindSpiralPlot object."""
@@ -1988,7 +2016,15 @@ class PolarWindSpiralPlot(PolarWindPlot):
 # =============================================================================
 
 class PolarWindScatterPlot(PolarWindPlot):
-    """Specialised class to generate a windrose plot."""
+    """Specialised class to generate a windrose plot.
+
+    The wind scatter plat shows wind speed and direction over a period of time.
+    Points are plotted by time with wind speed represented by the distance from
+    the origin and wind direction is incicated by the polar angle. The plotted
+    points can be optionally connected in order of age by a single line. The
+    line may transition in colour from oldest to youngest. The plot typically
+    results in a single curved line that joins all plotted points in time order.
+    """
 
     def __init__(self, skin_dict, plot_dict):
         """Initialise a PolarWindScatterPlot object."""
