@@ -38,7 +38,7 @@ this program.  If not, see https://www.gnu.org/licenses/.
 Version: 0.1.0b1                                    Date: 16 January 2022
 
 Revision History
-   16 January 2022      v0.1.0
+   ?? January 2022      v0.1.0
        -   initial release
 """
 # TODO: Testing. Test trail plot net vector positioning for various timestamp positions
