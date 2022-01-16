@@ -1566,60 +1566,23 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.ring_units = DISTANCE_LOOKUP[self.speed_vec.unit]
 
     def render_plot(self):
-        """Render the trail plot data."""
+        """Render the trail plot."""
 
         # radius of plot area in pixels
         plot_radius = self.max_plot_dia / 2
         # scaling to be applied to calculated vectors
         scale = plot_radius / self.max_vector_radius
-        # Unfortunately PIL does not allow us to work with layers so we need to
-        # process our data twice; once to plot the 'trail' and a second time to
-        # plot any markers
-
-        # plot the markers
-        if self.marker_type is not None:
-            vec_x = 0
-            vec_y = 0
-            # iterate over the samples, ignore the first since we don't know what
-            # period (delta) it applies to
-            for i in range(1, self.samples):
-                this_dir_vec = self.dir_vec[0][i]
-                this_speed_vec = self.speed_vec[0][i]
-                # ignore any speeds that are 0 or None and any directions that
-                # are None
-                if this_speed_vec is None or this_dir_vec is None or this_speed_vec == 0.0:
-                    continue
-                # the period in sec the current speed applies to
-                delta = self.time_vec[0][i] - self.time_vec[0][i-1]
-                # the corresponding distance
-                dist = this_speed_vec * delta / self.factor
-                # calculate new running vector from centre for this point
-                vec_x += dist * math.sin(math.radians((this_dir_vec + 180) % 360))
-                vec_y += dist * math.cos(math.radians((this_dir_vec + 180) % 360))
-                # scale the vector to our polar plot area
-                x = self.origin_x + vec_x * scale
-                y = self.origin_y - vec_y * scale
-                # determine marker color to be used
-                marker_color = self.get_speed_color(self.marker_color,
-                                                    this_speed_vec)
-                # if this is the last point make it different colour if needed
-                if i == self.samples - 1:
-                    if self.end_point_color:
-                        marker_color = self.end_point_color
-                # now draw the markers
-                self.render_marker(x, y, self.marker_size, self.marker_type, marker_color)
-
-        # now plot the lines
+        # for the first sample the vector components must be set to 0 and the
+        # previous point must be set to the origin
         vec_x = 0
         vec_y = 0
-        # for the first sample the previous point must be set to the origin
         last_x = self.origin_x
         last_y = self.origin_y
         if self.dir_vec.value[0] is None:
-            last_a = 0
+            last_dir = 0
         else:
-            last_a = int((self.dir_vec.value[0] + 180) % 360)
-        last_r = 0
+            last_dir = int((self.dir_vec.value[0] + 180) % 360)
+        last_radius = 0
         # iterate over the samples, ignore the first since we don't know what
         # period (delta) it applies to
         for i in range(1, self.samples):
@@ -1629,7 +1592,7 @@ class PolarWindTrailPlot(PolarWindPlot):
             if this_speed_vec is None or this_dir_vec is None or this_speed_vec == 0.0:
                 continue
             # the period in sec the current speed applies to
-            delta = self.time_vec.value[i] - self.time_vec.value[i-1]
+            delta = self.time_vec.value[i] - self.time_vec.value[i - 1]
             # the corresponding distance
             dist = this_speed_vec * delta / self.factor
             # calculate new running vector from centre for this point
@@ -1638,8 +1601,8 @@ class PolarWindTrailPlot(PolarWindPlot):
             # scale the vector to our polar plot area
             x = self.origin_x + vec_x * scale
             y = self.origin_y - vec_y * scale
-            radius = math.sqrt(vec_x**2 + vec_y**2) * scale
-            this_a = math.degrees(math.atan2(-vec_y, vec_x)) + 90.0
+            this_radius = math.sqrt(vec_x**2 + vec_y**2) * scale
+            this_dir = math.degrees(math.atan2(-vec_y, vec_x)) + 90.0
             # determine line color to be used
             line_color = self.get_speed_color(self.line_color,
                                               this_speed_vec)
@@ -1648,14 +1611,26 @@ class PolarWindTrailPlot(PolarWindPlot):
                 vector = (int(last_x), int(last_y), int(x), int(y))
                 self.draw.line(vector, fill=line_color, width=self.line_width)
             elif self.line_type == "radial":
-                self.join_curve(last_x, last_y, last_r, last_a,
-                                x, y, radius, this_a,
+                self.join_curve(last_x, last_y, last_radius, last_dir,
+                                x, y, this_radius, this_dir,
                                 line_color, self.line_width)
+            # do we need to plot a marker
+            if self.marker_type is not None:
+                # we do, so get the colour, it's based on speed
+                marker_color = self.get_speed_color(self.marker_color,
+                                                    this_speed_vec)
+                # if this is the last point make it a different colour if
+                # needed
+                if i == self.samples - 1:
+                    if self.end_point_color:
+                        marker_color = self.end_point_color
+                # now draw the marker
+                self.render_marker(x, y, self.marker_size, self.marker_type, marker_color)
             last_x = x
             last_y = y
-            last_a = this_a
-            last_r = radius
-        # That's the last sample done, now we draw final vector if required
+            last_dir = this_dir
+            last_radius = this_radius
+        # that's the last sample done, now we draw final vector if required
         if self.vector_color is not None:
             vector = (int(self.origin_x), int(self.origin_y), int(x), int(y))
             self.draw.line(vector,
