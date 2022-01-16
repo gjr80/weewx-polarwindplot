@@ -2100,20 +2100,15 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.ring_units = SPEED_LOOKUP[self.speed_vec.unit]
 
     def render_plot(self):
-        """Render the scatter plot data."""
+        """Render the scatter plot."""
 
-        # radius of plot area in pixels
-        plot_radius = self.max_plot_dia / 2
-
-        # unfortunately PIL does not allow us to work with layers so we need to
-        # process our data twice; once to plot the scatter line and a second
-        # time to plot any markers
-
-        # plot the scatter line if required
-        if self.line_type is not None:
+        # do we need to plot anything
+        if self.line_type is not None or self.marker_type is not None:
+            # radius of plot area in pixels
+            plot_radius = self.max_plot_dia / 2
             # initialise values for the last plot point, use None as there is
             # no last point the first time around
-            last_x = last_y = last_a = last_r = None
+            last_x = last_y = last_dir = last_radius = None
             # iterate over the samples
             for i in range(0, self.samples):
                 this_dir_vec = self.dir_vec.value[i]
@@ -2122,13 +2117,13 @@ class PolarWindScatterPlot(PolarWindPlot):
                 if this_speed_vec is not None and this_dir_vec is not None:
                     # calculate the 'radius' in pixels of the vector
                     # representing the sample to be plotted
-                    radius = plot_radius * this_speed_vec / self.max_speed_range
+                    this_radius = plot_radius * this_speed_vec / self.max_speed_range
                     # calculate the x and y coords of the sample to be plotted
-                    x = int(self.origin_x + radius * math.sin(math.radians(this_dir_vec)))
-                    y = int(self.origin_y - radius * math.cos(math.radians(this_dir_vec)))
+                    x = int(self.origin_x + this_radius * math.sin(math.radians(this_dir_vec)))
+                    y = int(self.origin_y - this_radius * math.cos(math.radians(this_dir_vec)))
                     # if this is the first sample we can skip it as we have
                     # nothing to plot from
-                    if last_r is not None:
+                    if last_radius is not None:
                         # determine the line color to be used
                         if self.line_color == "age":
                             # color is dependent on the age of the sample so
@@ -2148,40 +2143,28 @@ class PolarWindScatterPlot(PolarWindPlot):
                             spoke = (self.origin_x, self.origin_y, x, y)
                             self.draw.line(spoke, fill=line_color, width=self.line_width)
                         elif self.line_type == "radial":
-                            self.join_curve(last_x, last_y, last_r, last_a,
-                                            x, y, radius, this_dir_vec,
+                            self.join_curve(last_x, last_y, last_radius, last_dir,
+                                            x, y, this_radius, this_dir_vec,
                                             line_color, self.line_width)
+                        # do we need to plot a marker
+                        if self.marker_type is not None:
+                            # we do, so get the colour, it's based on a
+                            # transition or is fixed
+                            if self.line_color == "age":
+                                marker_color = color_trans(self.oldest_color,
+                                                           self.newest_color,
+                                                           i / (self.samples - 1.0))
+                            else:
+                                marker_color = self.line_color
+                            # now draw the marker
+                            self.render_marker(x, y, self.marker_size,
+                                               self.marker_type, marker_color)
                     # this sample is complete, save the plot values as the
                     # 'last' sample
                     last_x = x
                     last_y = y
-                    last_a = this_dir_vec
-                    last_r = radius
-
-        # plot the markers if required
-        if self.marker_type is not None:
-            # iterate over the samples
-            for i in range(0, self.samples):
-                this_dir_vec = self.dir_vec.value[i]
-                this_speed_vec = self.speed_vec.value[i]
-                # we only plot if we have values for speed and dir
-                if this_speed_vec is not None and this_dir_vec is not None:
-                    # calculate the 'radius' in pixels of the vector
-                    # representing the sample to be plotted
-                    radius = plot_radius * this_speed_vec / self.max_speed_range
-                    # calculate the x and y coords of the sample to be plotted
-                    x = self.origin_x + radius * math.sin(math.radians(this_dir_vec))
-                    y = self.origin_y - radius * math.cos(math.radians(this_dir_vec))
-                    # determine the marker color to be used
-                    if self.line_color == "age":
-                        marker_color = color_trans(self.oldest_color,
-                                                   self.newest_color,
-                                                   i / (self.samples - 1.0))
-                    else:
-                        marker_color = self.line_color
-                    # now draw the markers
-                    self.render_marker(x, y, self.marker_size,
-                                       self.marker_type, marker_color)
+                    last_dir = this_dir_vec
+                    last_radius = this_radius
 
     def get_ring_label(self, ring):
         """Get the label to be displayed on the polar plot rings.
