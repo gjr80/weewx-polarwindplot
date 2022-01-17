@@ -396,16 +396,22 @@ class PolarWindPlot(object):
         # get config dict for polar plots
         self.plot_dict = plot_dict
 
-        # Set image attributes
+        # set image attributes
+        # overall image width and height
         self.image_width = int(self.plot_dict.get('image_width', 300))
         self.image_height = int(self.plot_dict.get('image_height', 180))
-        _image_back_box_color = self.plot_dict.get('image_background_box_color')
-        self.image_back_box_color = parse_color(_image_back_box_color, '#96C6F5')
+        # background colour of the image
+        _image_back_box_color = self.plot_dict.get('image_background_color')
+        self.image_background_color = parse_color(_image_back_box_color, '#96C6F5')
+        # background colour of the polar plot area
         _image_back_circle_color = self.plot_dict.get('image_background_circle_color')
         self.image_back_circle_color = parse_color(_image_back_circle_color, '#F5F5F5')
+        # colour of the polar plot area range rings
         _image_back_range_ring_color = self.plot_dict.get('image_background_range_ring_color')
         self.image_back_range_ring_color = parse_color(_image_back_range_ring_color, '#DDD9C3')
+        # background image to be used for the overall image background
         self.image_back_image = self.plot_dict.get('image_background_image')
+        # resample filter
         _resample_filter = self.plot_dict.get('resample_filter', 'NEAREST').upper()
         try:
             self.resample_filter = getattr(Image, _resample_filter)
@@ -921,7 +927,7 @@ class PolarWindPlot(object):
         if self.image_back_image is None:
             _image = Image.new("RGB",
                                (self.image_width, self.image_height),
-                               self.image_back_box_color)
+                               self.image_background_color)
         else:
             try:
                 _b_image = Image.open(self.image_back_image)
@@ -931,7 +937,7 @@ class PolarWindPlot(object):
             except (IOError, AttributeError):
                 _image = Image.new("RGB",
                                    (self.image_width, self.image_height),
-                                   self.image_back_box_color)
+                                   self.image_background_color)
         return _image
 
     def resize_image(self, image, tw, th):
@@ -1839,7 +1845,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # render the label
         self.draw.text((x, y), _label_text,
                        fill=self.legend_font_color,
-                       font=self.legend_font)
+                       font=self.label_font)
 
 
 # =============================================================================
