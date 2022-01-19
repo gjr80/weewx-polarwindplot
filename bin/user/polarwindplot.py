@@ -109,6 +109,7 @@ DEFAULT_PETAL_WIDTH = 0.8
 DEFAULT_BULLSEYE = 0.1
 DEFAULT_LINE_WIDTH = 1
 DEFAULT_MARKER_SIZE = 2
+DEFAULT_PLOT_FONT_COLOR = 'black'
 DISTANCE_LOOKUP = {'km_per_hour': 'km',
                    'mile_per_hour': 'mile',
                    'meter_per_second': 'km',
@@ -395,40 +396,38 @@ class PolarWindPlot(object):
         # save the formatter
         self.formatter = formatter
 
-        # get config dict for polar plots
-        self.plot_dict = plot_dict
-
         # set image attributes
         # overall image width and height
-        self.image_width = int(self.plot_dict.get('image_width', 300))
-        self.image_height = int(self.plot_dict.get('image_height', 180))
+        self.image_width = int(plot_dict.get('image_width', 300))
+        self.image_height = int(plot_dict.get('image_height', 180))
         # background colour of the image
-        _image_back_box_color = self.plot_dict.get('image_background_color')
+        _image_back_box_color = plot_dict.get('image_background_color')
         self.image_background_color = parse_color(_image_back_box_color, '#96C6F5')
         # background colour of the polar plot area
-        _image_back_circle_color = self.plot_dict.get('image_background_circle_color')
+        _image_back_circle_color = plot_dict.get('image_background_circle_color')
         self.image_back_circle_color = parse_color(_image_back_circle_color, '#F5F5F5')
         # colour of the polar plot area range rings
-        _image_back_range_ring_color = self.plot_dict.get('image_background_range_ring_color')
+        _image_back_range_ring_color = plot_dict.get('image_background_range_ring_color')
         self.image_back_range_ring_color = parse_color(_image_back_range_ring_color, '#DDD9C3')
         # background image to be used for the overall image background
-        self.image_back_image = self.plot_dict.get('image_background_image')
+        self.image_back_image = plot_dict.get('image_background_image')
         # resample filter
-        _resample_filter = self.plot_dict.get('resample_filter', 'NEAREST').upper()
+        _resample_filter = plot_dict.get('resample_filter', 'NEAREST').upper()
         try:
             self.resample_filter = getattr(Image, _resample_filter)
         except AttributeError:
             self.resample_filter = Image.NEAREST
 
         # plot attributes
-        self.plot_border = int(self.plot_dict.get('plot_border', 5))
-        self.font_path = self.plot_dict.get('font_path')
-        self.plot_font_size = int(self.plot_dict.get('plot_font_size', 10))
-        _plot_font_color = self.plot_dict.get('plot_font_color')
-        self.plot_font_color = parse_color(_plot_font_color, '#000000')
+        self.plot_border = int(plot_dict.get('plot_border', 5))
+        self.font_path = plot_dict.get('font_path')
+        self.plot_font_size = int(plot_dict.get('plot_font_size', 10))
+        _plot_font_color = plot_dict.get('plot_font_color')
+        self.plot_font_color = parse_color(_plot_font_color,
+                                           DEFAULT_PLOT_FONT_COLOR)
         # colours to be used in the plot
-        _colors = weeutil.weeutil.option_as_list(self.plot_dict.get('plot_colors',
-                                                                    DEFAULT_PLOT_COLORS))
+        _colors = weeutil.weeutil.option_as_list(plot_dict.get('plot_colors',
+                                                               DEFAULT_PLOT_COLORS))
         self.plot_colors = []
         for _color in _colors:
             if parse_color(_color, None) is not None:
@@ -446,17 +445,17 @@ class PolarWindPlot(object):
 
         # legend attributes
         # do we display a legend, default to True
-        self.legend = weeutil.weeutil.tobool(self.plot_dict.get('legend',
-                                                                True))
-        self.legend_bar_width = int(self.plot_dict.get('legend_bar_width', 10))
-        self.legend_font_size = int(self.plot_dict.get('legend_font_size', 10))
-        _legend_font_color = self.plot_dict.get('legend_font_color')
+        self.legend = weeutil.weeutil.tobool(plot_dict.get('legend',
+                                                           True))
+        self.legend_bar_width = int(plot_dict.get('legend_bar_width', 10))
+        self.legend_font_size = int(plot_dict.get('legend_font_size', 10))
+        _legend_font_color = plot_dict.get('legend_font_color')
         self.legend_font_color = parse_color(_legend_font_color, '#000000')
         self.legend_width = 0
 
         # title/plot label attributes
-        self.label_font_size = int(self.plot_dict.get('label_font_size', 12))
-        _label_font_color = self.plot_dict.get('label_font_color')
+        self.label_font_size = int(plot_dict.get('label_font_size', 12))
+        _label_font_color = plot_dict.get('label_font_color')
         self.label_font_color = parse_color(_label_font_color, '#000000')
 
         # compass point abbreviations
@@ -469,7 +468,7 @@ class PolarWindPlot(object):
         self.west = compass[3]
 
         # number of rings on the polar plot
-        self.rings = int(self.plot_dict.get('polar_rings', DEFAULT_NO_RINGS))
+        self.rings = int(plot_dict.get('polar_rings', DEFAULT_NO_RINGS))
 
         # Boundaries for speed range bands, these mark the colour boundaries
         # on the stacked bar in the legend. 7 elements only (ie 0, 10% of max,
@@ -480,10 +479,10 @@ class PolarWindPlot(object):
 
         # get the timestamp format, use a sane default that should display
         # sensibly for all locales
-        self.timestamp_format = self.plot_dict.get('time_stamp', '%x %X')
+        self.timestamp_format = plot_dict.get('timestamp_format', '%x %X')
         # get the timestamp location.
         # First get the option as a list. The default is bottom, right.
-        _ts_loc = self.plot_dict.get('time_stamp_location', 'bottom, right').lower()
+        _ts_loc = plot_dict.get('timestamp_location', 'bottom, right').lower()
         # if we have None as a string in any case combination take that as no
         # timestamp label is to be shown
         if _ts_loc == 'none':
@@ -505,7 +504,7 @@ class PolarWindPlot(object):
             self.timestamp_location = _ts_loc
 
         # get size of the arc to be kept clear for ring labels
-        self.ring_label_clear_arc = self.plot_dict.get('ring_label_clear_arc', 30)
+        self.ring_label_clear_arc = plot_dict.get('ring_label_clear_arc', 30)
 
         # initialise a number of properties to be used later
         self.speed_field = None
@@ -1143,20 +1142,20 @@ class PolarWindRosePlot(PolarWindPlot):
         super(PolarWindRosePlot, self).__init__(skin_dict, plot_dict, formatter)
 
         # get petal width, if not defined then use the default
-        self.petals = int(self.plot_dict.get('petals', DEFAULT_NO_PETALS))
+        self.petals = int(plot_dict.get('petals', DEFAULT_NO_PETALS))
         if self.petals < 2 or self.petals > 360:
             logdbg("Unsupported number of petals '%d', using default '%d' instead" % (self.petals,
                                                                                       DEFAULT_NO_PETALS))
             self.petals = DEFAULT_NO_PETALS
         # get petal width, if not defined then use the default
-        self.petal_width = float(self.plot_dict.get('petal_width',
-                                                    DEFAULT_PETAL_WIDTH))
+        self.petal_width = float(plot_dict.get('petal_width',
+                                               DEFAULT_PETAL_WIDTH))
         if self.petal_width < 0.01 or self.petal_width > 1.0:
             logdbg("Unsupported petal width '%d', using default '%d' instead" % (self.petal_width,
                                                                                  DEFAULT_PETAL_WIDTH))
             self.petal_width = DEFAULT_PETAL_WIDTH
         # bullseye radius as a proportion of the plot area radius
-        self.bullseye = float(self.plot_dict.get('bullseye', DEFAULT_BULLSEYE))
+        self.bullseye = float(plot_dict.get('bullseye', DEFAULT_BULLSEYE))
         if self.bullseye < 0.01 or self.bullseye > 1.0:
             logdbg("Unsupported bullseye size '%d', using default '%d' instead" % (self.bullseye,
                                                                                    DEFAULT_BULLSEYE))
@@ -1395,14 +1394,14 @@ class PolarWindScatterPlot(PolarWindPlot):
         # we don't display a legend on a scatter plot so force legend to False
         self.legend = False
         #  Get marker_type, default to  None
-        _marker_type = self.plot_dict.get('marker_type')
+        _marker_type = plot_dict.get('marker_type')
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
-        self.marker_size = int(self.plot_dict.get('marker_size',
-                                                  DEFAULT_MARKER_SIZE))
+        self.marker_size = int(plot_dict.get('marker_size',
+                                             DEFAULT_MARKER_SIZE))
         # Get line_type; available options are 'straight', 'spoke', 'radial' or
         # None. Default to 'straight'.
-        _line_type = self.plot_dict.get('line_type', 'straight').lower()
+        _line_type = plot_dict.get('line_type', 'straight').lower()
         # Handle the None case. If the string 'None' is specified (in any case
         # combination) then accept that as python None. Also use None if the
         # line_type config option has been listed but with no value.
@@ -1416,10 +1415,10 @@ class PolarWindScatterPlot(PolarWindPlot):
             _line_type = 'straight'
         self.line_type = _line_type
         # get line_width
-        self.line_width = int(self.plot_dict.get('line_width',
-                                                 DEFAULT_LINE_WIDTH))
+        self.line_width = int(plot_dict.get('line_width',
+                                            DEFAULT_LINE_WIDTH))
         # Get line_color, can be 'age' or a valid color. Default to 'age'.
-        _line_color = self.plot_dict.get('line_color', 'age')
+        _line_color = plot_dict.get('line_color', 'age')
         # we have a line color but is it valid or a type we know about
         if _line_color in ['age']:
             # it's a color style I understand
@@ -1435,13 +1434,13 @@ class PolarWindScatterPlot(PolarWindPlot):
                 logdbg("Unknown scatter plot line color '%s', using 'age' instead" % (_line_color, ))
 
         # get colors for oldest and newest points
-        _oldest_color = self.plot_dict.get('oldest_color')
+        _oldest_color = plot_dict.get('oldest_color')
         self.oldest_color = parse_color(_oldest_color, '#F7FAFF')
-        _newest_color = self.plot_dict.get('newest_color')
+        _newest_color = plot_dict.get('newest_color')
         self.newest_color = parse_color(_newest_color, '#00368E')
 
         # get axis label format
-        self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
+        self.axis_label = plot_dict.get('axis_label', '%H:%M')
 
         # initialise some properties for use later
         self.ring_units = None
@@ -1624,17 +1623,17 @@ class PolarWindSpiralPlot(PolarWindPlot):
         super(PolarWindSpiralPlot, self).__init__(skin_dict, plot_dict, formatter)
 
         # Display oldest or newest data at centre? Default to oldest.
-        self.centre = self.plot_dict.get('centre', 'oldest')
+        self.centre = plot_dict.get('centre', 'oldest')
 
         # get marker_type, default to None
-        _marker_type = self.plot_dict.get('marker_type')
+        _marker_type = plot_dict.get('marker_type')
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
-        self.marker_size = int(self.plot_dict.get('marker_size',
-                                                  DEFAULT_MARKER_SIZE))
+        self.marker_size = int(plot_dict.get('marker_size',
+                                             DEFAULT_MARKER_SIZE))
         # Get line_type; available options are 'straight', 'radial' or None.
         # Default to 'straight'.
-        _line_type = self.plot_dict.get('line_type', 'straight').lower()
+        _line_type = plot_dict.get('line_type', 'straight').lower()
         # Handle the None case. If the string 'None' is specified (in any case
         # combination) then accept that as python None. Also use None if the
         # line_type config option has been listed but with no value.
@@ -1648,19 +1647,19 @@ class PolarWindSpiralPlot(PolarWindPlot):
             _line_type = 'straight'
         self.line_type = _line_type
         # get line_width
-        self.line_width = int(self.plot_dict.get('line_width',
-                                                 DEFAULT_LINE_WIDTH))
+        self.line_width = int(plot_dict.get('line_width',
+                                            DEFAULT_LINE_WIDTH))
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
         # 'speed'.
-        self.line_color = self.plot_dict.get('line_color', 'speed')
+        self.line_color = plot_dict.get('line_color', 'speed')
         if self.line_color not in ['speed', 'age']:
             self.line_color = parse_color(self.line_color, 'speed')
         # Get marker_color, can be 'speed' or a valid color. Default to 'speed'.
-        self.marker_color = self.plot_dict.get('marker_color', 'speed')
+        self.marker_color = plot_dict.get('marker_color', 'speed')
         if self.marker_color != 'speed':
             self.marker_color = parse_color(self.marker_color, 'speed')
         # get axis label format
-        self.axis_label = self.plot_dict.get('axis_label', '%H:%M')
+        self.axis_label = plot_dict.get('axis_label', '%H:%M')
 
     def render(self, title):
         """Main entry point to generate a spiral polar wind plot."""
@@ -1879,14 +1878,14 @@ class PolarWindTrailPlot(PolarWindPlot):
         super(PolarWindTrailPlot, self).__init__(skin_dict, plot_dict, formatter)
 
         # get marker_type, default to None
-        _marker_type = self.plot_dict.get('marker_type')
+        _marker_type = plot_dict.get('marker_type')
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
-        self.marker_size = int(self.plot_dict.get('marker_size',
-                                                  DEFAULT_MARKER_SIZE))
+        self.marker_size = int(plot_dict.get('marker_size',
+                                             DEFAULT_MARKER_SIZE))
         # Get line_type; available options are 'straight', 'radial' or None.
         # Default to 'straight'.
-        _line_type = self.plot_dict.get('line_type', 'straight').lower()
+        _line_type = plot_dict.get('line_type', 'straight').lower()
         # Handle the None case. If the string 'None' is specified (in any case
         # combination) then accept that as python None. Also use None if the
         # line_type config option has been listed but with no value.
@@ -1900,32 +1899,32 @@ class PolarWindTrailPlot(PolarWindPlot):
             _line_type = 'straight'
         self.line_type = _line_type
         # get line_width
-        self.line_width = int(self.plot_dict.get('line_width',
-                                                 DEFAULT_LINE_WIDTH))
+        self.line_width = int(plot_dict.get('line_width',
+                                            DEFAULT_LINE_WIDTH))
 
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
         # 'speed'.
-        self.line_color = self.plot_dict.get('line_color', 'speed')
+        self.line_color = plot_dict.get('line_color', 'speed')
         if self.line_color not in ['speed', 'age']:
             self.line_color = parse_color(self.line_color, 'speed')
 
         # Get marker_color, can be 'speed' or a valid color. Default to 'speed'.
-        self.marker_color = self.plot_dict.get('marker_color', 'speed')
+        self.marker_color = plot_dict.get('marker_color', 'speed')
         if self.marker_color != 'speed':
             self.marker_color = parse_color(self.marker_color, 'speed')
 
         # get vector_color, default to red
-        _color = self.plot_dict.get('vector_color', 'red')
+        _color = plot_dict.get('vector_color', 'red')
         # check that it is a valid color
-        self.vector_color = parse_color(self.plot_dict.get('vector_color', 'red'),
+        self.vector_color = parse_color(plot_dict.get('vector_color', 'red'),
                                         'red')
 
         # get end_point_color, default to None
-        self.end_point_color = parse_color(self.plot_dict.get('end_point_color', None),
+        self.end_point_color = parse_color(plot_dict.get('end_point_color', None),
                                            None)
 
         # get the vector location
-        _vec_loc = set(self.plot_dict.get('vector_location', {}))
+        _vec_loc = set(plot_dict.get('vector_location', {}))
         _v_align = _vec_loc & {'top', 'bottom'}
         if not _v_align:
             _v_align = {'bottom'}
@@ -1942,7 +1941,7 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.vector_location = _v_align | _h_align
 
         # get size of the arc to be kept clear for ring labels
-        self.ring_label_clear_arc = self.plot_dict.get('ring_label_clear_arc', 30)
+        self.ring_label_clear_arc = plot_dict.get('ring_label_clear_arc', 30)
         # set some properties to startup defaults
         self.max_vector_radius = None
         self.ring_units = None
