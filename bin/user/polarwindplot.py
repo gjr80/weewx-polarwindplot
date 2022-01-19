@@ -107,6 +107,8 @@ DEFAULT_NO_RINGS = 5
 DEFAULT_NO_PETALS = 16
 DEFAULT_PETAL_WIDTH = 0.8
 DEFAULT_BULLSEYE = 0.1
+DEFAULT_LINE_WIDTH = 1
+DEFAULT_MARKER_SIZE = 2
 DISTANCE_LOOKUP = {'km_per_hour': 'km',
                    'mile_per_hour': 'mile',
                    'meter_per_second': 'km',
@@ -1396,7 +1398,8 @@ class PolarWindScatterPlot(PolarWindPlot):
         _marker_type = self.plot_dict.get('marker_type')
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
-        self.marker_size = int(self.plot_dict.get('marker_size', 1))
+        self.marker_size = int(self.plot_dict.get('marker_size',
+                                                  DEFAULT_MARKER_SIZE))
         # Get line_type; available options are 'straight', 'spoke', 'radial' or
         # None. Default to 'straight'.
         _line_type = self.plot_dict.get('line_type', 'straight').lower()
@@ -1412,8 +1415,9 @@ class PolarWindScatterPlot(PolarWindPlot):
             # and default to 'straight'
             _line_type = 'straight'
         self.line_type = _line_type
-        # get line_width, default to 1
-        self.line_width = int(self.plot_dict.get('line_width', 1))
+        # get line_width
+        self.line_width = int(self.plot_dict.get('line_width',
+                                                 DEFAULT_LINE_WIDTH))
         # Get line_color, can be 'age' or a valid color. Default to 'age'.
         _line_color = self.plot_dict.get('line_color', 'age')
         # we have a line color but is it valid or a type we know about
@@ -1626,7 +1630,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         _marker_type = self.plot_dict.get('marker_type')
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
-        self.marker_size = int(self.plot_dict.get('marker_size', 1))
+        self.marker_size = int(self.plot_dict.get('marker_size',
+                                                  DEFAULT_MARKER_SIZE))
         # Get line_type; available options are 'straight', 'radial' or None.
         # Default to 'straight'.
         _line_type = self.plot_dict.get('line_type', 'straight').lower()
@@ -1642,8 +1647,9 @@ class PolarWindSpiralPlot(PolarWindPlot):
             # and default to 'straight'
             _line_type = 'straight'
         self.line_type = _line_type
-        # get line_width, default to 1
-        self.line_width = int(self.plot_dict.get('line_width', 1))
+        # get line_width
+        self.line_width = int(self.plot_dict.get('line_width',
+                                                 DEFAULT_LINE_WIDTH))
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
         # 'speed'.
         self.line_color = self.plot_dict.get('line_color', 'speed')
@@ -1876,7 +1882,8 @@ class PolarWindTrailPlot(PolarWindPlot):
         _marker_type = self.plot_dict.get('marker_type')
         self.marker_type = None if _marker_type == '' else _marker_type
         # get marker_size, default to '1'
-        self.marker_size = int(self.plot_dict.get('marker_size', 1))
+        self.marker_size = int(self.plot_dict.get('marker_size',
+                                                  DEFAULT_MARKER_SIZE))
         # Get line_type; available options are 'straight', 'radial' or None.
         # Default to 'straight'.
         _line_type = self.plot_dict.get('line_type', 'straight').lower()
@@ -1892,8 +1899,9 @@ class PolarWindTrailPlot(PolarWindPlot):
             # and default to 'straight'
             _line_type = 'straight'
         self.line_type = _line_type
-        # get line_width, default to 1
-        self.line_width = int(self.plot_dict.get('line_width', 1))
+        # get line_width
+        self.line_width = int(self.plot_dict.get('line_width',
+                                                 DEFAULT_LINE_WIDTH))
 
         # Get line_color, can be 'speed', 'age' or a valid color. Default to
         # 'speed'.
