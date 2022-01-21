@@ -103,7 +103,7 @@ except ImportError:
 POLAR_WIND_PLOT_VERSION = '0.1.0b1'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
-DEFAULT_NO_RINGS = 5
+DEFAULT_NUM_RINGS = 5
 DEFAULT_NO_PETALS = 16
 DEFAULT_PETAL_WIDTH = 0.8
 DEFAULT_BULLSEYE = 0.1
@@ -468,7 +468,7 @@ class PolarWindPlot(object):
         self.west = compass[3]
 
         # number of rings on the polar plot
-        self.rings = int(plot_dict.get('polar_rings', DEFAULT_NO_RINGS))
+        self.rings = int(plot_dict.get('polar_rings', DEFAULT_NUM_RINGS))
 
         # Boundaries for speed range bands, these mark the colour boundaries
         # on the stacked bar in the legend. 7 elements only (ie 0, 10% of max,
