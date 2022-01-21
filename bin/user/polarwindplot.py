@@ -35,7 +35,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.0b1                                    Date: 16 January 2022
+Version: 0.1.0b2                                    Date: 16 January 2022
 
 Revision History
    ?? January 2022      v0.1.0
@@ -100,7 +100,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.0b1'
+POLAR_WIND_PLOT_VERSION = '0.1.0b2'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NUM_RINGS = 5
