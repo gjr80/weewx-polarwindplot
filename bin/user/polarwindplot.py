@@ -1492,10 +1492,12 @@ class PolarWindScatterPlot(PolarWindPlot):
         quadrant_count = [0 for x in range(4)]
         # iterate over our samples assigning each to a particular quadrant
         for i in range(0, self.samples):
-            # get the direction component of the sample vector
-            _dir_vec = self.dir_vec.value[i]
+            # get the direction element of the sample
+            _dir = self.dir_vec.value[i]
             # increment the count for the quadrant that will contain the sample
-            quadrant_count[int(_dir_vec // 90)] += 1
+            # but be careful as the sample's direction could be None
+            if _dir is not None:
+                quadrant_count[int(_dir // 90)] += 1
         # now choose the quadrant for our labels, default to SE (quadrant 1)
         label_dir = 1
         # iterate over our quadrants in preferred order of use
