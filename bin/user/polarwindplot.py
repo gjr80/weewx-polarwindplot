@@ -35,7 +35,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.0b2                                    Date: 16 January 2022
+Version: 0.1.0b3                                    Date: 24 January 2022
 
 Revision History
    ?? January 2022      v0.1.0
@@ -100,7 +100,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.0b2'
+POLAR_WIND_PLOT_VERSION = '0.1.0b3'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NUM_RINGS = 5
@@ -110,6 +110,7 @@ DEFAULT_BULLSEYE = 0.1
 DEFAULT_LINE_WIDTH = 1
 DEFAULT_MARKER_SIZE = 2
 DEFAULT_PLOT_FONT_COLOR = 'black'
+DEFAULT_RING_LABEL_TIME_FORMAT = '%H:%M'
 DISTANCE_LOOKUP = {'km_per_hour': 'km',
                    'mile_per_hour': 'mile',
                    'meter_per_second': 'km',
@@ -764,7 +765,7 @@ class PolarWindPlot(object):
                            fill=self.legend_font_color,
                            font=self.legend_font)
 
-    def render_polar_grid(self, bullseye=0):
+    def render_polar_grid(self):
         """Render polar plot grid.
 
         Render the polar grid on which the plot will be displayed. This
@@ -778,9 +779,9 @@ class PolarWindPlot(object):
         # render the rings
 
         # calculate the space in pixels between each ring
-        ring_space = (1 - bullseye) * self.max_plot_dia/(2.0 * self.rings)
+        ring_space = (1 - self.bullseye) * self.max_plot_dia/(2.0 * self.rings)
         # calculate the radius of the bullseye in pixels
-        bullseye_radius = bullseye * self.max_plot_dia / 2.0
+        bullseye_radius = self.bullseye * self.max_plot_dia / 2.0
         # locate/size then render each ring starting from the outside
         for i in range(self.rings, 0, -1):
             # create a bound box for the ring
@@ -1189,7 +1190,7 @@ class PolarWindRosePlot(PolarWindPlot):
         # render the legend
         self.render_legend()
         # render the polar grid
-        self.render_polar_grid(bullseye=self.bullseye)
+        self.render_polar_grid()
         # render the timestamp label
         self.render_timestamp()
         # finally, render the plot
@@ -1440,7 +1441,8 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.newest_color = parse_color(_newest_color, '#00368E')
 
         # get axis label format
-        self.axis_label = plot_dict.get('axis_label', '%H:%M')
+        self.ring_label_time_format = plot_dict.get('ring_label_time_format',
+                                                    DEFAULT_RING_LABEL_TIME_FORMAT)
 
         # initialise some properties for use later
         self.ring_units = None
@@ -1538,7 +1540,7 @@ class PolarWindScatterPlot(PolarWindPlot):
                     # nothing to plot from
                     if last_radius is not None:
                         # determine the line color to be used
-                        if self.line_color == "age":
+                        if self.line_color == 'age':
                             # color is dependent on the age of the sample so
                             # calculate a transition color
                             line_color = color_trans(self.oldest_color,
@@ -1563,7 +1565,7 @@ class PolarWindScatterPlot(PolarWindPlot):
                         if self.marker_type is not None:
                             # we do, so get the colour, it's based on a
                             # transition or is fixed
-                            if self.line_color == "age":
+                            if self.line_color == 'age':
                                 marker_color = color_trans(self.oldest_color,
                                                            self.newest_color,
                                                            i / (self.samples - 1.0))
@@ -1661,7 +1663,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         if self.marker_color != 'speed':
             self.marker_color = parse_color(self.marker_color, 'speed')
         # get axis label format
-        self.axis_label = plot_dict.get('axis_label', '%H:%M')
+        self.ring_label_time_format = plot_dict.get('ring_label_time_format',
+                                                    DEFAULT_RING_LABEL_TIME_FORMAT)
 
     def render(self, title):
         """Main entry point to generate a spiral polar wind plot."""
@@ -1802,7 +1805,7 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # get the sample ts as a datetime object
         _dt = datetime.datetime.fromtimestamp(self.time_vec.value[sample])
         # return the formatted time
-        return _dt.strftime(self.axis_label).strip()
+        return _dt.strftime(self.ring_label_time_format).strip()
 
     def render_spiral_direction_label(self):
         """Render label indicating direction of the spiral."""
