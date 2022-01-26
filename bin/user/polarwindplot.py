@@ -35,7 +35,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.0b3                                    Date: 24 January 2022
+Version: 0.1.0b4                                    Date: 24 January 2022
 
 Revision History
    ?? January 2022      v0.1.0
@@ -100,7 +100,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.0b3'
+POLAR_WIND_PLOT_VERSION = '0.1.0b4'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NUM_RINGS = 5
@@ -765,7 +765,7 @@ class PolarWindPlot(object):
                            fill=self.legend_font_color,
                            font=self.legend_font)
 
-    def render_polar_grid(self):
+    def render_polar_grid(self, bullseye=0):
         """Render polar plot grid.
 
         Render the polar grid on which the plot will be displayed. This
@@ -779,9 +779,9 @@ class PolarWindPlot(object):
         # render the rings
 
         # calculate the space in pixels between each ring
-        ring_space = (1 - self.bullseye) * self.max_plot_dia/(2.0 * self.rings)
+        ring_space = (1 - bullseye) * self.max_plot_dia/(2.0 * self.rings)
         # calculate the radius of the bullseye in pixels
-        bullseye_radius = self.bullseye * self.max_plot_dia / 2.0
+        bullseye_radius = bullseye * self.max_plot_dia / 2.0
         # locate/size then render each ring starting from the outside
         for i in range(self.rings, 0, -1):
             # create a bound box for the ring
@@ -1190,7 +1190,7 @@ class PolarWindRosePlot(PolarWindPlot):
         # render the legend
         self.render_legend()
         # render the polar grid
-        self.render_polar_grid()
+        self.render_polar_grid(bullseye=self.bullseye)
         # render the timestamp label
         self.render_timestamp()
         # finally, render the plot
