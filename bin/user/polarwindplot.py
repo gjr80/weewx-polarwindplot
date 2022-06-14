@@ -1627,7 +1627,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         super(PolarWindSpiralPlot, self).__init__(skin_dict, plot_dict, formatter)
 
         # Display oldest or newest data at centre? Default to oldest.
-        self.centre = plot_dict.get('centre', 'oldest')
+        _centre = plot_dict.get('center', 'oldest').lower()
+        self.centre = _centre if _centre in ['oldest', 'newest'] else 'oldest'
 
         # get marker_type, default to None
         _marker_type = plot_dict.get('marker_type')
