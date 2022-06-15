@@ -2068,7 +2068,8 @@ class PolarWindTrailPlot(PolarWindPlot):
         """Render the trail plot."""
 
         # do we need to plot anything
-        if self.line_type is not None or self.marker_type is not None:
+        if (self.line_type is not None or self.marker_type is not None) \
+                and self.max_vector_radius > 0.0:
             # radius of plot area in pixels
             plot_radius = self.max_plot_dia / 2
             # scaling to be applied to calculated vectors
