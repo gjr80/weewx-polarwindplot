@@ -10,10 +10,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
             Installer for PolarWindPlot Image Generator Extension
 
-Version: 0.1.0                                          Date: ?? ?????? 2022
+Version: 0.1.0                                          Date: 15 June 2022
 
 Revision History
-    ?? ?????? 2022      v0.1.0
+    15 June 2022      v0.1.0
         -   Initial implementation
 """
 
@@ -33,8 +33,8 @@ POLARWINDPLOT_VERSION = "0.1.0"
 # define our config as a multiline string so we can preserve comments
 polar_config = """
 [StdReport]
-    [[PolarWindPlot]]
-        skin = PolarWindPlot
+    [[PolarWindPlotDemo]]
+        skin = PolarWindPlotDemo
         [[[Units]]]
             [[[[Groups]]]]
                 group_speed = km_per_hour
@@ -57,7 +57,7 @@ polar_config = """
             image_background_range_ring_color = 0xC3D9DD
             plot_border = 5
             legend_bar_width = 10
-            font_path = /usr/share/fonts/truetype/freefont/FreeSansBold.ttf
+            font_path = font/OpenSans-Bold.ttf
             plot_font_size = 10
             plot_font_color = 0x000000
             legend_font_size = 10
@@ -98,10 +98,12 @@ class PolarWindPlotInstaller(ExtensionInstaller):
             name='PolarWindPlot',
             description='Polar wind plot image generator for WeeWX.',
             author="Gary Roderick Neil Trimboy",
-            author_email="gjroderick@gmail.com neil.trimboy@gmail.com",
+            author_email="gjroderick@gmail.com",
             config=polar_dict,
             files=[
-                ('bin/user', ['bin/user/polarWindPlot.py']),
-                ('skins/PolarWindPlot', ['skins/PolarWindPlot/skin.conf'])
+                ('bin/user', ['bin/user/polarwindplot.py']),
+                ('skins/PolarWindPlot', ['skins/PolarWindPlotDemo/skin.conf',
+                                         'skins/PolarWindPlotDemo/font/LICENSE.txt',
+                                         'skins/PolarWindPlotDemo/font/OpenSans-Bold.ttf'])
             ]
         )
