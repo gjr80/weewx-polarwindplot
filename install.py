@@ -103,6 +103,7 @@ class PolarWindPlotInstaller(ExtensionInstaller):
             files=[
                 ('bin/user', ['bin/user/polarwindplot.py']),
                 ('skins/PolarWindPlot', ['skins/PolarWindPlotDemo/skin.conf',
+                                         'skins/PolarWindPlotDemo/polarplots.html.tmpl',
                                          'skins/PolarWindPlotDemo/font/LICENSE.txt',
                                          'skins/PolarWindPlotDemo/font/OpenSans-Bold.ttf'])
             ]
