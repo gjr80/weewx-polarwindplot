@@ -10,10 +10,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
             Installer for PolarWindPlot Image Generator Extension
 
-Version: 0.1.0                                          Date: 15 June 2022
+Version: 0.1.0                                          Date: 16 June 2022
 
 Revision History
-    15 June 2022      v0.1.0
+    16 June 2022      v0.1.0
         -   Initial implementation
 """
 
@@ -99,12 +99,6 @@ class PolarWindPlotInstaller(ExtensionInstaller):
             description='Polar wind plot image generator for WeeWX.',
             author="Gary Roderick Neil Trimboy",
             author_email="gjroderick@gmail.com",
-            config=polar_dict,
-            files=[
-                ('bin/user', ['bin/user/polarwindplot.py']),
-                ('skins/PolarWindPlot', ['skins/PolarWindPlotDemo/skin.conf',
-                                         'skins/PolarWindPlotDemo/polarplots.html.tmpl',
-                                         'skins/PolarWindPlotDemo/font/LICENSE.txt',
-                                         'skins/PolarWindPlotDemo/font/OpenSans-Bold.ttf'])
-            ]
+#            config=polar_dict,
+            files=[('bin/user', ['bin/user/polarwindplot.py'])]
         )
