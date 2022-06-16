@@ -63,7 +63,7 @@ class PolarWindPlotDemoSkinInstaller(ExtensionInstaller):
             config=polar_dict,
             files=[
                 ('skins/PolarWindPlot', ['skins/PolarWindPlotDemo/skin.conf',
-                                         'skins/PolarWindPlotDemo/polarplots.html.tmpl',
+                                         'skins/PolarWindPlotDemo/polarwindplot/polarplots.html.tmpl',
                                          'skins/PolarWindPlotDemo/font/LICENSE.txt',
                                          'skins/PolarWindPlotDemo/font/OpenSans-Bold.ttf'])
             ]
