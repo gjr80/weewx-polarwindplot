@@ -35,10 +35,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.0b4                                    Date: 24 January 2022
+Version: 0.1.0                                      Date: 16 June 2022
 
 Revision History
-   ?? January 2022      v0.1.0
+   16 June 2022         v0.1.0
        -   initial release
 """
 # TODO: Testing. Test trail plot net vector positioning for various timestamp positions
@@ -100,7 +100,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.0b4'
+POLAR_WIND_PLOT_VERSION = '0.1.0'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NUM_RINGS = 5
