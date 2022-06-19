@@ -56,7 +56,7 @@ class PolarWindPlotDemoSkinInstaller(ExtensionInstaller):
             raise weewx.UnsupportedFeature(msg)
         super(PolarWindPlotDemoSkinInstaller, self).__init__(
             version="0.1.0",
-            name='PolarWindPlotDemoSkin',
+            name='PolarWindPlotDemo',
             description='Demonstration skin for the WeeWX polar wind plot image generator.',
             author="Gary Roderick",
             author_email="gjroderick@gmail.com",
