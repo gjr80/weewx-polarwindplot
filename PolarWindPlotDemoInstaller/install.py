@@ -10,10 +10,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                       Installer for PolarWindPlotDemo skin
 
-Version: 0.1.0                                          Date: 16 June 2022
+Version: 0.1.1                                          Date: 19 June 2022
 
 Revision History
-    16 June 2022      v0.1.0
+    19 June 2022      v0.1.1
         -   Initial implementation
 """
 
@@ -29,7 +29,7 @@ import weewx
 from setup import ExtensionInstaller
 
 REQUIRED_VERSION = "3.2.0"
-POLARWINDPLOTDEMO_VERSION = "0.1.0"
+POLARWINDPLOTDEMO_VERSION = "0.1.1"
 # define our config as a multiline string so we can preserve comments
 polar_config = """
 [StdReport]
@@ -55,7 +55,7 @@ class PolarWindPlotDemoSkinInstaller(ExtensionInstaller):
                                                                  weewx.__version__)
             raise weewx.UnsupportedFeature(msg)
         super(PolarWindPlotDemoSkinInstaller, self).__init__(
-            version="0.1.0",
+            version=POLARWINDPLOTDEMO_VERSION,
             name='PolarWindPlotDemo',
             description='Demonstration skin for the WeeWX polar wind plot image generator.',
             author="Gary Roderick",
