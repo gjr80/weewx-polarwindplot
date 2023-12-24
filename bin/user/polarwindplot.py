@@ -204,9 +204,9 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                 # Get the end time for plot. In order try gen_ts, last known
                 # good archive time stamp and then finally current time
                 plotgen_ts = gen_ts
+                binding = plot_options['data_binding']
+                dbmanager = self.db_binder.get_manager(binding)
                 if not plotgen_ts:
-                    binding = plot_options['data_binding']
-                    dbmanager = self.db_binder.get_manager(binding)
                     plotgen_ts = dbmanager.lastGoodStamp()
                     if not plotgen_ts:
                         plotgen_ts = time.time()
@@ -258,7 +258,7 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                     # Determine the speed and direction archive fields to be
                     # used. Can really only plot windSpeed, windDir and
                     # windGust, windGustDir. If anything else default to
-                    # windSpeed, windDir.
+                    # windSpeed, windDir.`
                     sp_field = source_options.get('data_type', source)
                     if sp_field == 'windSpeed':
                         dir_field = 'windDir'
