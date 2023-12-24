@@ -201,11 +201,13 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                 # get a polar wind plot object from the factory
                 plot_obj = self._polar_plot_factory(plot_options)
 
+                # obtain a dbmanager so we can access the database
+                binding = plot_options['data_binding']
+                dbmanager = self.db_binder.get_manager(binding)
+
                 # Get the end time for plot. In order try gen_ts, last known
                 # good archive time stamp and then finally current time
                 plotgen_ts = gen_ts
-                binding = plot_options['data_binding']
-                dbmanager = self.db_binder.get_manager(binding)
                 if not plotgen_ts:
                     plotgen_ts = dbmanager.lastGoodStamp()
                     if not plotgen_ts:
@@ -558,14 +560,15 @@ class PolarWindPlot(object):
 
         # WeeWX archive field that was used for our speed data
         self.speed_field = speed_field
-        # find maximum speed from our data
+        # find maximum speed from our data, be careful as some values could be
+        # None
         max_speed = weeutil.weeutil.max_with_none(speed_vec.value)
         # set upper speed range for our plot, set to a multiple of 10 for a
         # neater display
         if max_speed is not None:
             self.max_speed_range = (int(max_speed / 10.0) + 1) * 10
         else:
-            max_speed = DEFAULT_MAX_SPEED
+            self.max_speed_range = DEFAULT_MAX_SPEED
         # save the speed and dir data vectors
         self.speed_vec = speed_vec
         self.dir_vec = dir_vec
