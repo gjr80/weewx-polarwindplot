@@ -35,11 +35,13 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.0                                      Date: 16 June 2022
+Version: 0.1.1                                      Date: 24 December 2023
 
 Revision History
-   16 June 2022         v0.1.0
-       -   initial release
+    24 December 2023    v0.1.1
+        -
+    16 June 2022        v0.1.0
+        -   initial release
 """
 # TODO: Testing. Test trail plot net vector positioning for various timestamp positions
 # TODO: Testing. Test use of data_binding config option
@@ -100,7 +102,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.0'
+POLAR_WIND_PLOT_VERSION = '0.1.1'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NUM_RINGS = 5
@@ -111,6 +113,7 @@ DEFAULT_LINE_WIDTH = 1
 DEFAULT_MARKER_SIZE = 2
 DEFAULT_PLOT_FONT_COLOR = 'black'
 DEFAULT_RING_LABEL_TIME_FORMAT = '%H:%M'
+DEFAULT_MAX_SPEED = 30
 DISTANCE_LOOKUP = {'km_per_hour': 'km',
                    'mile_per_hour': 'mile',
                    'meter_per_second': 'km',
@@ -556,10 +559,13 @@ class PolarWindPlot(object):
         # WeeWX archive field that was used for our speed data
         self.speed_field = speed_field
         # find maximum speed from our data
-        max_speed = max(speed_vec.value)
+        max_speed = weeutil.weeutil.max_with_none(speed_vec.value)
         # set upper speed range for our plot, set to a multiple of 10 for a
         # neater display
-        self.max_speed_range = (int(max_speed / 10.0) + 1) * 10
+        if max_speed is not None:
+            self.max_speed_range = (int(max_speed / 10.0) + 1) * 10
+        else:
+            max_speed = DEFAULT_MAX_SPEED
         # save the speed and dir data vectors
         self.speed_vec = speed_vec
         self.dir_vec = dir_vec
