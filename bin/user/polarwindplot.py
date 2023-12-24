@@ -39,7 +39,9 @@ Version: 0.1.1                                      Date: 24 December 2023
 
 Revision History
     24 December 2023    v0.1.1
-        -
+        -   fix issue where one or more None values in the wind speed vector
+            would cause the generator to abort
+        -   fix issue that prevented the generator running with wee_reports
     16 June 2022        v0.1.0
         -   initial release
 """
@@ -260,7 +262,7 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                     # Determine the speed and direction archive fields to be
                     # used. Can really only plot windSpeed, windDir and
                     # windGust, windGustDir. If anything else default to
-                    # windSpeed, windDir.`
+                    # windSpeed, windDir.
                     sp_field = source_options.get('data_type', source)
                     if sp_field == 'windSpeed':
                         dir_field = 'windDir'
