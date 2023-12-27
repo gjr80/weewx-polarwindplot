@@ -41,11 +41,11 @@ Polar Wind Plot Image Generator extension releases page
 (https://github.com/gjr80/weewx-polarwindplot/releases) into a directory
 accessible from the WeeWX machine.
 
-    $ wget -P /var/tmp https://github.com/gjr80/weewx-polarwindplot/releases/download/v0.1.0/polarwindplot-0.1.0.tar.gz
+    $ wget -P /var/tmp https://github.com/gjr80/weewx-polarwindplot/releases/download/v0.1.2/polarwindplot-0.1.2.tar.gz
 
 2.  Install the Polar Wind Plot Image Generator extension:
 
-    $ wee_extension --install=/var/tmp/polarwindplot-0.1.0.tar.gz
+    $ wee_extension --install=/var/tmp/polarwindplot-0.1.2.tar.gz
 
     Note: Depending on your system/installation the above command may need to
     be prefixed with *sudo*.
@@ -55,11 +55,11 @@ accessible from the WeeWX machine.
 
     This will result in output similar to the following:
 
-        Request to install '/var/tmp/polarwindplot-0.1.0.tar.gz'
-        Extracting from tar archive /var/tmp/polarwindplot-0.1.0.tar.gz
+        Request to install '/var/tmp/polarwindplot-0.1.2.tar.gz'
+        Extracting from tar archive /var/tmp/polarwindplot-0.1.2.tar.gz
         Saving installer file to /home/weewx/bin/user/installer/PolarWindplot
         Saved configuration dictionary. Backup copy at /home/weewx/weewx.conf.20220101124410
-        Finished installing extension '/var/tmp/polarwindplot-0.1.0.tar.gz'
+        Finished installing extension '/var/tmp/polarwindplot-0.1.2.tar.gz'
 
 3.  Modify an existing skin to use the Polar Wind Plot Image Generator or
 install the Polar Wind Plot Image Generator Demonstration skin.

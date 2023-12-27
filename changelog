@@ -1,2 +1,8 @@
+v0.1.2
+*   generator version string can now be optionally included on each plot
+*   fix error in processing of timestamp location config option
+v0.1.1
+*   fix issue when wind source speed vector contains one or more None values
+*   fix error when setting max_speed_range property
 v0.1.0
 *   initial implementation
