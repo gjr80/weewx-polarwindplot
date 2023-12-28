@@ -2349,7 +2349,7 @@ def parse_color(color, default=None):
     # do we have a valid color or none (in any case)
     try:
         result = ImageColor.getrgb(color)
-    except ValueError:
+    except (ValueError, AttributeError):
         # getrgb() cannot parse color; most likely it is not a recognised
         # color string or maybe it is None. Either way use the default
         result = parse_color(default) if default is not None else None
