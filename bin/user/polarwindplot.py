@@ -41,6 +41,7 @@ Revision History
     27 December 2023    v0.1.2
         -   generator version string can now be optionally included on each plot
         -   fix error in processing of timestamp location config option
+        -   fix error when all wind speed values are None
     24 December 2023    v0.1.1
         -   fix issue when wind source speed vector contains one or more None values
         -   fix error when setting max_speed_range property
@@ -107,7 +108,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.2b1'
+POLAR_WIND_PLOT_VERSION = '0.1.2b2'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NUM_RINGS = 5
@@ -634,9 +635,13 @@ class PolarWindPlot(object):
 
         # WeeWX archive field that was used for our speed data
         self.speed_field = speed_field
-        # find maximum speed from our data, be careful as some values could be
-        # None
-        max_speed = weeutil.weeutil.max_with_none(speed_vec.value)
+        # find maximum speed from our data, be careful as some or all values
+        # could be None
+        try:
+            max_speed = weeutil.weeutil.max_with_none(speed_vec.value)
+        except TypeError:
+            # likely all our speed_vec values are None
+            max_speed = None
         # set upper speed range for our plot, set to a multiple of 10 for a
         # neater display
         if max_speed is not None:
