@@ -10,10 +10,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
             Installer for PolarWindPlot Image Generator Extension
 
-Version: 0.1.0                                          Date: 16 June 2022
+Version: 0.1.1                                          Date: 24 December 2023
 
 Revision History
-    16 June 2022      v0.1.0
+    24 December 2023    v0.1.1
+        -   no change, version increment only
+    16 June 2022        v0.1.0
         -   Initial implementation
 """
 
@@ -29,7 +31,7 @@ import weewx
 from setup import ExtensionInstaller
 
 REQUIRED_VERSION = "3.2.0"
-POLARWINDPLOT_VERSION = "0.1.0"
+POLARWINDPLOT_VERSION = "0.1.1"
 # define our config as a multiline string so we can preserve comments
 polar_config = """
 [StdReport]
@@ -94,7 +96,7 @@ class PolarWindPlotInstaller(ExtensionInstaller):
                                                                  weewx.__version__)
             raise weewx.UnsupportedFeature(msg)
         super(PolarWindPlotInstaller, self).__init__(
-            version="0.1.0",
+            version="0.1.1",
             name='PolarWindPlot',
             description='Polar wind plot image generator for WeeWX.',
             author="Gary Roderick Neil Trimboy",
