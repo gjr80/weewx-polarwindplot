@@ -35,7 +35,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.2b1                                    Date: 27 December 2023
+Version: 0.1.2b3                                    Date: 27 December 2023
 
 Revision History
     27 December 2023    v0.1.2
