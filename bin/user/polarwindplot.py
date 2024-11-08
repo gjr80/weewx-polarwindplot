@@ -42,6 +42,8 @@ Revision History
         -   generator version string can now be optionally included on each plot
         -   fix error in processing of timestamp location config option
         -   fix error when all wind speed values are None
+        -   handle TypeError raised when parse_color() is asked to parse the
+            value None as a colour
     24 December 2023    v0.1.1
         -   fix issue when wind source speed vector contains one or more None values
         -   fix error when setting max_speed_range property
@@ -108,7 +110,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.2b2'
+POLAR_WIND_PLOT_VERSION = '0.1.2b3'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NUM_RINGS = 5
@@ -2354,9 +2356,9 @@ def parse_color(color, default=None):
     # do we have a valid color or none (in any case)
     try:
         result = ImageColor.getrgb(color)
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError, TypeError):
         # getrgb() cannot parse color; most likely it is not a recognised
-        # color string or maybe it is None. Either way use the default
+        # color string or maybe it is None. Either way use the default.
         result = parse_color(default) if default is not None else None
     return result
 
