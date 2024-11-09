@@ -20,7 +20,7 @@ Various parameters including the plot type, period, source data field, units
 of measure and colours can be controlled by the user through various
 configuration options similar to other image generators.
 
-Copyright (c) 2017-2022   Gary Roderick           gjroderick<at>gmail.com
+Copyright (c) 2017-2024   Gary Roderick           gjroderick<at>gmail.com
                           Neil Trimboy            neil.trimboy<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
@@ -35,13 +35,18 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.1                                      Date: 24 December 2023
+Version: 0.1.2                                      Date: 9 November 2024
 
 Revision History
+    9 November 2024     v0.1.2
+        -   generator version string can now be optionally included on each plot
+        -   fix error in processing of timestamp location config option
+        -   fix error when all wind speed values are None
+        -   handle TypeError raised when parse_color() is asked to parse the
+            value None as a colour
     24 December 2023    v0.1.1
-        -   fix issue where one or more None values in the wind speed vector
-            would cause the generator to abort
-        -   fix issue that prevented the generator running with wee_reports
+        -   fix issue when wind source speed vector contains one or more None values
+        -   fix error when setting max_speed_range property
     16 June 2022        v0.1.0
         -   initial release
 """
@@ -65,6 +70,7 @@ except ImportError:
 import six
 
 # WeeWX imports
+import weewx
 import weewx.units
 import weeplot.utilities
 import weeutil.weeutil
@@ -104,7 +110,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.1'
+POLAR_WIND_PLOT_VERSION = '0.1.2'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NUM_RINGS = 5
@@ -194,7 +200,7 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
         t1 = time.time()
         # set plot count to 0
         ngen = 0
-        # loop over each 'time span' section (eg day, week, month, etc)
+        # loop over each 'time span' section (eg day, week, month etc)
         for span in self.polar_dict.sections:
             # now loop over all plot names in this 'time span' section
             for plot in self.polar_dict[span].sections:
@@ -262,7 +268,7 @@ class PolarWindPlotGenerator(weewx.reportengine.ReportGenerator):
                     # Determine the speed and direction archive fields to be
                     # used. Can really only plot windSpeed, windDir and
                     # windGust, windGustDir. If anything else default to
-                    # windSpeed, windDir.
+                    # windSpeed, windDir.`
                     sp_field = source_options.get('data_type', source)
                     if sp_field == 'windSpeed':
                         dir_field = 'windDir'
@@ -489,27 +495,96 @@ class PolarWindPlot(object):
         # sensibly for all locales
         self.timestamp_format = plot_dict.get('timestamp_format', '%x %X')
         # get the timestamp location.
-        # First get the option as a list. The default is bottom, right.
-        _ts_loc = plot_dict.get('timestamp_location', 'bottom, right').lower()
-        # if we have None as a string in any case combination take that as no
-        # timestamp label is to be shown
+        # First get the option, if the option includes a comma we will have a
+        # list otherwise it will be a string. The default will return a list
+        # ['bottom', 'right'].
+        _ts_loc = plot_dict.get('timestamp_location', 'bottom, right')
+        # If we have the string 'None' in any case combination take that as no
+        # timestamp label is to be shown. Try to convert the option to lower
+        # case, if it is a list we will get an AttributeError.
+        try:
+            _ts_loc = _ts_loc.lower()
+        except AttributeError:
+            # _ts_loc is not a string, do nothing, we will pick this up shortly
+            pass
+        # do we have the string 'None' in any case combination
         if _ts_loc == 'none':
+            # we have the string 'None', so we don't display the timestamp
             self.timestamp_location = None
         else:
-            # we have something other than None so we will be displaying a
-            # timestamp label
-            # get our option as a list
-            _ts_loc = weeutil.weeutil.option_as_list(_ts_loc)
-            # now convert to a set
-            _ts_loc = set(_ts_loc)
-            # if we don't have a vertical position specified default to 'bottom'
+            # we have something other than the string 'None', so we will be
+            # displaying a timestamp label, but where?
+            # get our option as a set
+            _ts_loc = set(weeutil.weeutil.option_as_list(_ts_loc))
+            # if we don't have a valid vertical position specified default to
+            # 'bottom'
             if not _ts_loc & {'top', 'bottom'}:
                 _ts_loc.add('bottom')
-            # if we don't have a horizontal position specified default to 'right'
+            # if we don't have a valid horizontal position specified default to
+            # 'right'
             if not _ts_loc & {'left', 'centre', 'center', 'right'}:
                 _ts_loc.add('right')
             # assign the resulting set to the timestamp_location property
             self.timestamp_location = _ts_loc
+
+        # Get the version string location, the default is {top left}, but we
+        # need to de-conflict with the timestamp location. Also, unless the
+        # version string display has been explicitly disabled with the string
+        # 'None' (in any case combination), display the version string whenever
+        # debug >= 1.
+        # first get the option, if the options does not exist None will be
+        # returned
+        _v_loc_opt = plot_dict.get('version_location')
+        if _v_loc_opt is None:
+            # version_location was not set, so unless debug >= 1 we will not
+            # display the version string
+            if weewx.debug >= 1:
+                # debug is >= 1 so check if we can use our default location of
+                # {top, left}, we will be fine unless the timestamp is there
+                if {'top', 'left'} == self.timestamp_location:
+                    # the timestamp has {top, left} so we will use {top, right}
+                    self.version_location = {'top', 'right'}
+                else:
+                    # we are clear to use {top, left}
+                    self.version_location = {'top', 'left'}
+            else:
+                # version_location was not set and debug == 0 so don't display
+                # the version string
+                self.version_location = None
+        else:
+            # version_location was set, but was it explicitly disabled by use
+            # of the string 'None' (in any variation of case)? Try to convert
+            # the option to lower case, if it is a list we will get an
+            # AttributeError.
+            try:
+                _v_loc_opt = _v_loc_opt.lower()
+            except AttributeError:
+                # _v_loc_opt is not a string, do nothing, we will pick this up
+                # shortly
+                pass
+            if _v_loc_opt == 'none':
+                # version string display has been explicitly disabled
+                self.version_location = None
+            else:
+                # obtain the version_location option as a set of strings
+                _v_loc = set(weeutil.weeutil.option_as_list(_v_loc_opt))
+                # if we don't have a valid vertical position specified default
+                # to 'top'
+                if not _v_loc & {'top', 'bottom'}:
+                    _v_loc.add('top')
+                # if we don't have a valid horizontal position specified
+                # default to 'right' but only if timestamp is not using
+                # 'right', in that case use 'left'
+                if not _v_loc & {'left', 'centre', 'center', 'right'}:
+                    # there is no horizontal position specified so de-conflict
+                    # with timestamp location
+                    _temp_loc = _v_loc | {'left'}
+                    if _temp_loc not in self.timestamp_location:
+                        _v_loc.add('left')
+                    else:
+                        _v_loc.add('right')
+                # assign the resulting set to the version_location property
+                self.version_location = _v_loc
 
         # get size of the arc to be kept clear for ring labels
         self.ring_label_clear_arc = plot_dict.get('ring_label_clear_arc', 30)
@@ -562,9 +637,13 @@ class PolarWindPlot(object):
 
         # WeeWX archive field that was used for our speed data
         self.speed_field = speed_field
-        # find maximum speed from our data, be careful as some values could be
-        # None
-        max_speed = weeutil.weeutil.max_with_none(speed_vec.value)
+        # find maximum speed from our data, be careful as some or all values
+        # could be None
+        try:
+            max_speed = weeutil.weeutil.max_with_none(speed_vec.value)
+        except TypeError:
+            # likely all our speed_vec values are None
+            max_speed = None
         # set upper speed range for our plot, set to a multiple of 10 for a
         # neater display
         if max_speed is not None:
@@ -934,6 +1013,29 @@ class PolarWindPlot(object):
                            fill=self.label_font_color,
                            font=self.label_font)
 
+    def render_version(self):
+        """Render the polarwindplot generator version string."""
+
+        # we only render if we have a location to put the version string
+        # otherwise we have nothing to do
+        if self.version_location:
+            text = 'v%s' % POLAR_WIND_PLOT_VERSION
+            width, height = self.draw.textsize(text, font=self.label_font)
+            if 'top' in self.version_location:
+                y = self.plot_border + height
+            else:
+                y = self.image_height - self.plot_border - height
+            if 'left' in self.version_location:
+                x = self.plot_border
+            elif ('center' in self.version_location) or ('centre' in self.version_location):
+                x = self.origin_x - width / 2
+            else:
+                x = self.image_width - self.plot_border - width
+            self.draw.text((x, y),
+                           text,
+                           fill=self.label_font_color,
+                           font=self.label_font)
+
     def get_image(self):
         """Get an image object on which to render the plot."""
 
@@ -1204,6 +1306,8 @@ class PolarWindRosePlot(PolarWindPlot):
         self.render_polar_grid(bullseye=self.bullseye)
         # render the timestamp label
         self.render_timestamp()
+        # render the version string
+        self.render_version()
         # finally, render the plot
         self.render_plot()
         # return the completed plot image
@@ -1391,7 +1495,7 @@ class PolarWindScatterPlot(PolarWindPlot):
 
     The wind scatter plat shows wind speed and direction over a period of time.
     Points are plotted by time with wind speed represented by the distance from
-    the origin and wind direction is incicated by the polar angle. The plotted
+    the origin and wind direction is indicated by the polar angle. The plotted
     points can be optionally connected in order of age by a single line. The
     line may transition in colour from oldest to youngest. The plot typically
     results in a single curved line that joins all plotted points in time order.
@@ -1479,6 +1583,8 @@ class PolarWindScatterPlot(PolarWindPlot):
         self.render_polar_grid()
         # render the timestamp label
         self.render_timestamp()
+        # render the version string
+        self.render_version()
         # finally, render the plot
         self.render_plot()
         # return the completed plot image
@@ -1620,8 +1726,8 @@ class PolarWindScatterPlot(PolarWindPlot):
 class PolarWindSpiralPlot(PolarWindPlot):
     """Specialised class to generate a spiral wind plot.
 
-    The wind spiral plot shows the wind speed and direction over over a period
-    of time. The plot consists of a single line starting from the origin of the
+    The wind spiral plot shows the wind speed and direction over a period of
+    time. The plot consists of a single line starting from the origin of the
     polar plot and ending at the outer edge of the plot area. Wind speed is
     indicated by the colour of the line and wind direction by the polar plot
     angle. The plot may place the oldest entry at the origin and the most
@@ -1705,6 +1811,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         self.render_polar_grid()
         # render the timestamp label
         self.render_timestamp()
+        # render the version string
+        self.render_version()
         # render the spiral direction label
         self.render_spiral_direction_label()
         # finally, render the plot
@@ -1833,8 +1941,8 @@ class PolarWindSpiralPlot(PolarWindPlot):
         # get the size of the label
         width, height = self.draw.textsize(_label_text, font=self.label_font)
         # Now locate the label. We follow the vertical location of the
-        # timestamp label but we render on the opposite side of the plot so as
-        # to not overwrite the timestamp label. If there is no timestamp label
+        # timestamp label but we render on the opposite side of the plot so we
+        # do not overwrite the timestamp label. If there is no timestamp label
         # then default to the bottom left.
         if self.timestamp_location is not None:
             # start off using the same vertical alignment as the timestamp
@@ -1993,6 +2101,8 @@ class PolarWindTrailPlot(PolarWindPlot):
         self.render_polar_grid()
         # render the timestamp
         self.render_timestamp()
+        # render the version string
+        self.render_version()
         # render the overall windrun vector text
         self.render_vector()
         # finally, render the plot
@@ -2246,9 +2356,9 @@ def parse_color(color, default=None):
     # do we have a valid color or none (in any case)
     try:
         result = ImageColor.getrgb(color)
-    except Exception:
-        # color is not a recognised color string or color is something (maybe
-        # None) that getrgb() cannot parse. Either way use the default
+    except (ValueError, AttributeError, TypeError):
+        # getrgb() cannot parse color; most likely it is not a recognised
+        # color string or maybe it is None. Either way use the default.
         result = parse_color(default) if default is not None else None
     return result
 
