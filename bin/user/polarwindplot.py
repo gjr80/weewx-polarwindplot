@@ -20,7 +20,7 @@ Various parameters including the plot type, period, source data field, units
 of measure and colours can be controlled by the user through various
 configuration options similar to other image generators.
 
-Copyright (c) 2017-2023   Gary Roderick           gjroderick<at>gmail.com
+Copyright (c) 2017-2024   Gary Roderick           gjroderick<at>gmail.com
                           Neil Trimboy            neil.trimboy<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
@@ -35,10 +35,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.2b3                                    Date: 27 December 2023
+Version: 0.1.2                                      Date: 9 November 2024
 
 Revision History
-    27 December 2023    v0.1.2
+    9 November 2024     v0.1.2
         -   generator version string can now be optionally included on each plot
         -   fix error in processing of timestamp location config option
         -   fix error when all wind speed values are None
@@ -110,7 +110,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 
-POLAR_WIND_PLOT_VERSION = '0.1.2b3'
+POLAR_WIND_PLOT_VERSION = '0.1.2'
 DEFAULT_PLOT_COLORS = ['lightblue', 'blue', 'midnightblue', 'forestgreen',
                        'limegreen', 'green', 'greenyellow']
 DEFAULT_NUM_RINGS = 5

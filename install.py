@@ -10,27 +10,45 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
             Installer for PolarWindPlot Image Generator Extension
 
-Version: 0.1.2                                          Date: 27 December 2023
+Version: 0.1.2                                          Date: 9 November 2024
 
 Revision History
-    27 December 2023    v0.1.2
+    9 November 2024     v0.1.2
         -   removed all reference to PolarWindPlotDemo skin
+        -   remove distutils.StrictVersion dependency
     24 December 2023    v0.1.1
         -   bump version only
     16 June 2022        v0.1.0
         -   Initial implementation
 """
 
-# python imports
-import configobj
-from distutils.version import StrictVersion
-
 # WeeWX imports
 import weewx
 from setup import ExtensionInstaller
 
-REQUIRED_VERSION = "3.2.0"
+REQUIRED_WEEWX_VERSION = "3.2.0"
 POLARWINDPLOT_VERSION = "0.1.2"
+
+
+def version_compare(v1, v2):
+    """Basic 'distutils' and 'packaging' free version comparison.
+
+    v1 and v2 are WeeWX version numbers in string format.
+
+    Returns:
+        0 if v1 and v2 are the same
+        -1 if v1 is less than v2
+        +1 if v1 is greater than v2
+    """
+
+    import itertools
+    mash = itertools.zip_longest(v1.split('.'), v2.split('.'), fillvalue='0')
+    for x1, x2 in mash:
+        if x1 > x2:
+            return 1
+        if x1 < x2:
+            return -1
+    return 0
 
 
 def loader():
@@ -40,9 +58,9 @@ def loader():
 class PolarWindPlotInstaller(ExtensionInstaller):
 
     def __init__(self):
-        if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_VERSION):
+        if version_compare(weewx.__version__, REQUIRED_WEEWX_VERSION) < 0:
             msg = "%s requires WeeWX %s or greater, found %s" % (''.join(('PolarWindPlot ', POLARWINDPLOT_VERSION)),
-                                                                 REQUIRED_VERSION,
+                                                                 REQUIRED_WEEWX_VERSION,
                                                                  weewx.__version__)
             raise weewx.UnsupportedFeature(msg)
         super(PolarWindPlotInstaller, self).__init__(
